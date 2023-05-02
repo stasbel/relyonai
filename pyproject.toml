@@ -1,0 +1,30 @@
+# based on https://github.com/psf/black/blob/main/pyproject.toml
+
+[build-system]
+requires = ["hatchling>=1.14.1"]
+build-backend = "hatchling.build"
+
+[project]
+name = "askai"
+version = "0.1.0"
+requires-python = ">=3.8"
+dependencies = [
+    "openai==0.27.6",
+]
+
+[project.optional-dependencies]
+dev = [
+    "black==23.3.0",
+    "isort==5.12.0",
+]
+all = ["askai[dev]"]
+
+[tool.black]
+line-length = 99
+# https://stackoverflow.com/questions/56011/single-quotes-vs-double-quotes-in-python/56190#56190
+skip-string-normalization = true
+
+[tool.isort]
+profile = "black"
+# line-length is not supported
+line_length = 99
