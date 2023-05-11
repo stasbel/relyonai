@@ -15,10 +15,16 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
+    # format
     "black==23.3.0",
     "isort==5.12.0",
+    # lint
     "flake8==6.0.0",
     "Flake8-pyproject==1.2.3",  # for [tool.flake8] section later
+    # test
+    "pytest==7.3.1",
+    "pytest-sugar==0.9.7",
+    "pytest-xdist==3.2.1",
 ]
 all = ["askai[dev]"]
 
@@ -34,3 +40,7 @@ line_length = 99
 
 [tool.flake8]
 max-line-length = 99
+
+[tool.pytest.ini_options]
+# with caching, single process is faster
+addopts="-n 0"

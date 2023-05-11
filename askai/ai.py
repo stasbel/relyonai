@@ -1,37 +1,57 @@
 import logging
 from typing import Any
 
+import joblib
+import openai
+
+import askai
 from askai import prompt, utils
 
-MODEL = 'gpt-3.5-turbo'
+logger = logging.getLogger(__name__)
+
+# shared across processes with local file
+memory = joblib.Memory(askai.CACHE_DIR, verbose=0)
+
+
+@memory.cache
+def _generate_or_retrieve_code(prompt_messages):
+    logger.info('cache miss, generating bytecode')
+
+    response = openai.ChatCompletion.create(
+        model=askai.OPENAI_MODEL,
+        messages=prompt_messages,
+        temperature=0.0,  # maximum truth and less randomness
+    )
+    code = response['choices'][0]['message']['content'].strip()
+    logger.info(f'code: {code}')
+
+    code = code.split('\n')
+    if code[0] != '```python' or code[-1] != '```':
+        raise ValueError(f'invalid code block response from {askai.OPENAI_MODEL}')
+    code = '\n'.join(code[1:-1]).strip()
+
+    return code
 
 
 def ai(task: str, **kwargs) -> Any:
-    import openai
-
     prompt_messages = prompt.make_prompt_messages(task, **kwargs)
-    logging.info(f'len prompt messages: {len(prompt_messages)}')
+    logger.info(f'len prompt messages: {len(prompt_messages)}')
 
     if utils.package_exists('tiktoken'):
         import tiktoken
 
-        tokenizer = tiktoken.encoding_for_model(MODEL)
+        tokenizer = tiktoken.encoding_for_model(askai.OPENAI_MODEL)
         prompt_len = len(tokenizer.encode('\n'.join(m['content'] for m in prompt_messages)))
-        logging.info(f'prompt length: {prompt_len}')
+        logger.info(f'prompt length: {prompt_len}')
 
-    response = openai.ChatCompletion.create(
-        model='gpt-3.5-turbo',
-        messages=prompt_messages,
-        temperature=0.0,
-    )
-    response = response['choices'][0]['message']['content'].strip()
-    __code__ = response
+    # hoping for a cache hit
+    code = _generate_or_retrieve_code(prompt_messages)
 
-    # delete stuff so it doesn't capture in exec
-    del response
-    del openai
+    # * bytecode isn't pickable by joblib (though we can parse ast first)
+    # https://docs.python.org/3/library/functions.html#compile
+    bytecode = compile(code, '<gpt>', 'exec')
 
-    return __code__
-
-    # exec(__code__)
-    # return result
+    # https://docs.python.org/3/library/functions.html#exec
+    _globals = kwargs
+    exec(bytecode, _globals)
+    return _globals['result']
