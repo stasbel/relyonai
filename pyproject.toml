@@ -7,6 +7,7 @@ build-backend = "hatchling.build"
 [project]
 name = "askai"
 version = "0.1.0"
+# version parser expected this to be of form ">={python_version}"
 requires-python = ">=3.8"
 dependencies = [
     "openai==0.27.6",
@@ -16,6 +17,8 @@ dependencies = [
 dev = [
     "black==23.3.0",
     "isort==5.12.0",
+    "flake8==6.0.0",
+    "Flake8-pyproject==1.2.3",  # for [tool.flake8] section later
 ]
 all = ["askai[dev]"]
 
@@ -28,3 +31,6 @@ skip-string-normalization = true
 profile = "black"
 # line-length is not supported
 line_length = 99
+
+[tool.flake8]
+max-line-length = 99
