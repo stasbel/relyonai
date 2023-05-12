@@ -7,3 +7,7 @@ def test_sum():
 
 def test_sum_bound():
     assert ai('sum of 1 and x', x=10) == 11
+
+
+def test_translation():
+    assert ai('translate s to french', s='hello').lower() == 'bonjour'

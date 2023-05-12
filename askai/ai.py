@@ -45,6 +45,9 @@ def _generate_or_retrieve_code(prompt_messages):
 
 
 def ai(task: str, **kwargs) -> Any:
+    if 'gpt' in kwargs:
+        raise ValueError('gpt is a reserved keyword')
+
     prompt_messages = prompt.make_prompt_messages(task, **kwargs)
 
     # hoping for a cache hit
@@ -55,6 +58,7 @@ def ai(task: str, **kwargs) -> Any:
     bytecode = compile(code, '<gpt>', 'exec')
 
     # https://docs.python.org/3/library/functions.html#exec
-    _globals = kwargs
+    _globals = kwargs.copy()
+    _globals['gpt'] = askai.gpt
     exec(bytecode, _globals)
     return _globals['result']
