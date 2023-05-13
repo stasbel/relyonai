@@ -4,11 +4,12 @@ import re
 with open(os.path.join(os.path.dirname(__file__), '../pyproject.toml'), 'r') as f:
     PYTHON_VERSION = re.findall(r'requires-python\s*=\s*">=([\d.]+)"', f.read(), re.IGNORECASE)[0]
 
+CACHE_PATH = os.path.join(os.path.dirname(__file__), '.askai.cache')
+
 del os
 del re
 
 OPENAI_MODEL = 'gpt-3.5-turbo'
-CACHE_DIR = '.askai.cache'
 TRUNCATE_REPR = 150
 HISTORY_LEN_MAX = 5
 

@@ -4,7 +4,7 @@ import openai
 import askai
 
 # shared across processes with local file
-memory = joblib.Memory(askai.CACHE_DIR, verbose=0)
+memory = joblib.Memory(askai.CACHE_PATH, verbose=0)
 
 
 @memory.cache
