@@ -8,6 +8,8 @@ import askai
 from askai import prompt, utils
 from askai.exceptions import AskAITaskError
 
+REVERSVED_KEYWORDS = ('gpt', 'AskAITaskError')
+
 logger = logging.getLogger(__name__)
 
 # shared across processes with local file
@@ -45,8 +47,8 @@ def _generate_or_retrieve_code(prompt_messages):
 
 
 def ai(task: str, **kwargs) -> Any:
-    if 'gpt' in kwargs:
-        raise ValueError('gpt is a reserved keyword')
+    if set(kwargs.keys()) & set(REVERSVED_KEYWORDS):
+        raise ValueError(f'reserved keywords: {REVERSVED_KEYWORDS}')
 
     chat = prompt.Chat()
     chat.add_system()
@@ -55,9 +57,9 @@ def ai(task: str, **kwargs) -> Any:
 
     globals = kwargs.copy()
     globals['gpt'] = askai.gpt
-    last_raised_exception = None
+    globals['AskAITaskError'] = AskAITaskError
 
-    history_len = 0
+    last_raised_exception, history_len = None, 0
     while True:
         # hoping for a cache hit
         code = _generate_or_retrieve_code(chat.messages)

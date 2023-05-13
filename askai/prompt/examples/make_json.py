@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 
 N_FIRST_TECHNICAL_CELLS = 2
 N_LAST_TECHNICAL_CELLS = 1
-NBS_ORDER = [
+NBS_ORDER = (
     'package',
     'const',
     'error_fixing',
@@ -24,7 +24,7 @@ NBS_ORDER = [
     'gpt',
     'task_error',
     'task_error_cause',
-]
+)
 
 
 class ExampleNotebookRuntime:
