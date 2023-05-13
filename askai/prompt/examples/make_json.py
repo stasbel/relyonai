@@ -4,9 +4,12 @@ import logging
 import nbformat
 
 from askai import prompt
+from askai.exceptions import AskAITaskError
 
 logger = logging.getLogger(__name__)
 
+N_FIRST_TECHNICAL_CELLS = 2
+N_LAST_TECHNICAL_CELLS = 1
 NBS_ORDER = [
     'package',
     'const',
@@ -19,6 +22,8 @@ NBS_ORDER = [
     'file_noarg',
     'plt',
     'gpt',
+    'task_error',
+    'task_error_cause',
 ]
 
 
@@ -44,12 +49,19 @@ class ExampleNotebookRuntime:
         assert cell.cell_type == 'code'
 
         code = cell.source.strip()
-        # if code sell is what we expect to predict
-        if 2 <= self.pos < len(self) - 1:
+        # if code sell is what we expect to predict (last cell could be an error)
+        if N_FIRST_TECHNICAL_CELLS <= self.pos < len(self) - N_LAST_TECHNICAL_CELLS:
             *code, last_line = code.split('\n')
-            code, last_line = '\n'.join(code), last_line.strip()
+            last_line = last_line.strip()
 
-            assert last_line in ('result', 'final_result')
+            if self.steps_left != N_LAST_TECHNICAL_CELLS + 1:  # all but last
+                assert last_line in ('result', 'final_result')
+                code = '\n'.join(code)
+            else:  # last
+                if last_line == 'final_result':
+                    code = '\n'.join(code)
+                else:
+                    code = '\n'.join(code + [last_line])
 
         return code
 
@@ -68,26 +80,32 @@ def collect_messages(chat, runtime):
 
     chat.add_user_task(task, **args)
 
-    for _ in range(len(runtime) - 3):
+    for _ in range(len(runtime) - N_FIRST_TECHNICAL_CELLS - N_LAST_TECHNICAL_CELLS):
         code = runtime.next_cell_code()
         chat.add_assistant(code)
 
         try:
             runtime.run_next_cell()
         except Exception as e:
+            if isinstance(e, AskAITaskError):
+                # should be last cell -- assistant tell to stop process explicitly
+                assert runtime.steps_left == N_LAST_TECHNICAL_CELLS
+
+                continue
+
             # it's a bad example if last cell ending in error
-            assert runtime.steps_left != 1
+            assert runtime.steps_left != N_LAST_TECHNICAL_CELLS
 
             chat.add_user_error(e)
         else:
             # if code cell is last => exit loop
-            if runtime.steps_left == 1:
+            if runtime.steps_left == N_LAST_TECHNICAL_CELLS:
+                # loosely checking that we have have correct example
+                assert 'final_result' in runtime.globals
+
                 continue
 
             chat.add_user_result(runtime.globals['result'])
-
-    # loosely checking that we have have correct example
-    assert 'final_result' in runtime.globals
 
     # last cell is final result check
     runtime.run_next_cell()

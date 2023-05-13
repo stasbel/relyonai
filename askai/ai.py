@@ -6,6 +6,7 @@ import openai
 
 import askai
 from askai import prompt, utils
+from askai.exceptions import AskAITaskError
 
 logger = logging.getLogger(__name__)
 
@@ -36,8 +37,8 @@ def _generate_or_retrieve_code(prompt_messages):
     code = response['choices'][0]['message']['content'].strip()
 
     code = code.split('\n')
-    if code[0] != '```python' or code[-1] != '```':
-        raise ValueError(f'invalid code block response from {askai.OPENAI_MODEL}')
+    # if code[0] != '```python' or code[-1] != '```':
+    #     raise ValueError(f'invalid code block response from {askai.OPENAI_MODEL}')
     code = '\n'.join(code[1:-1]).strip()
 
     return code
@@ -54,13 +55,14 @@ def ai(task: str, **kwargs) -> Any:
 
     globals = kwargs.copy()
     globals['gpt'] = askai.gpt
+    last_raised_exception = None
 
     history_len = 0
     while True:
         # hoping for a cache hit
         code = _generate_or_retrieve_code(chat.messages)
-        logger.info(f'code: {code}')
         chat.add_assistant(code)
+        logger.info(f'assistant: {chat.messages[-1]["content"]}')
 
         try:
             # * bytecode isn't pickable by joblib (though we can parse ast first)
@@ -69,14 +71,23 @@ def ai(task: str, **kwargs) -> Any:
             # https://docs.python.org/3/library/functions.html#exec
             exec(code, globals)
         except Exception as e:
+            if isinstance(e, AskAITaskError):
+                if e.error_cause:
+                    raise e from last_raised_exception
+                else:
+                    raise e
+
+            # set last exception for that runtime
+            last_raised_exception = e
+
             chat.add_user_error(e)
-            logger.info(f'error: {chat.messages[-1]["content"]}')
+            logger.info(f'user/error: {chat.messages[-1]["content"]}')
         else:
             if 'final_result' in globals:
                 break
 
             chat.add_user_result(globals['result'])
-            logger.info(f'result: {chat.messages[-1]["content"]}')
+            logger.info(f'user/result: {chat.messages[-1]["content"]}')
 
         history_len += 1
         if history_len == askai.HISTORY_LEN_MAX:

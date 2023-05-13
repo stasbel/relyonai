@@ -49,5 +49,7 @@ ERROR: """
 \```python
 {code}
 [final_]result = {result expression}
+# or 
+raise AskAIError({error message})
 \```
 ```
