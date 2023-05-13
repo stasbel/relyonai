@@ -11,3 +11,7 @@ def test_sum_bound():
 
 def test_translation():
     assert ai('translate s to french', s='hello').lower() == 'bonjour'
+
+
+def test_multi():
+    assert ai('return answer from d', d={'Q': 'bark?', 'A': 'dog'}) == 'dog'

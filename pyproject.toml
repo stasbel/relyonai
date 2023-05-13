@@ -14,6 +14,9 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+prompt = [
+    "jupyter==1.0.0",
+]
 dev = [
     # format
     "black==23.3.0",
@@ -26,7 +29,7 @@ dev = [
     "pytest-sugar==0.9.7",
     "pytest-xdist==3.2.1",
 ]
-all = ["askai[dev]"]
+all = ["askai[prompt]", "askai[dev]"]
 
 [tool.black]
 line-length = 99

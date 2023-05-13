@@ -9,6 +9,8 @@ del re
 
 OPENAI_MODEL = 'gpt-3.5-turbo'
 CACHE_DIR = '.askai.cache'
+TRUNCATE_REPR = 100
+HISTORY_LEN_MAX = 5
 
 from .ai import ai  # noqa # pyright: ignore
 from .gpt import gpt  # noqa # pyright: ignore

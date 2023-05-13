@@ -28,13 +28,12 @@ def _generate_or_retrieve_code(prompt_messages):
     response = openai.ChatCompletion.create(
         model=askai.OPENAI_MODEL,
         messages=prompt_messages,
-        temperature=0.0,  # maximum truth and less randomness
+        temperature=0.0,  # maximum truth, minimum randomness
     )
     total_tokens = response['usage']['total_tokens']
     logger.info(f'token usage: {total_tokens}')
 
     code = response['choices'][0]['message']['content'].strip()
-    logger.info(f'code: {code}')
 
     code = code.split('\n')
     if code[0] != '```python' or code[-1] != '```':
@@ -48,17 +47,39 @@ def ai(task: str, **kwargs) -> Any:
     if 'gpt' in kwargs:
         raise ValueError('gpt is a reserved keyword')
 
-    prompt_messages = prompt.make_prompt_messages(task, **kwargs)
+    chat = prompt.Chat()
+    chat.add_system()
+    chat.load('examples')
+    chat.add_user_task(task, **kwargs)
 
-    # hoping for a cache hit
-    code = _generate_or_retrieve_code(prompt_messages)
+    globals = kwargs.copy()
+    globals['gpt'] = askai.gpt
 
-    # * bytecode isn't pickable by joblib (though we can parse ast first)
-    # https://docs.python.org/3/library/functions.html#compile
-    bytecode = compile(code, '<gpt>', 'exec')
+    history_len = 0
+    while True:
+        # hoping for a cache hit
+        code = _generate_or_retrieve_code(chat.messages)
+        logger.info(f'code: {code}')
+        chat.add_assistant(code)
 
-    # https://docs.python.org/3/library/functions.html#exec
-    _globals = kwargs.copy()
-    _globals['gpt'] = askai.gpt
-    exec(bytecode, _globals)
-    return _globals['result']
+        try:
+            # * bytecode isn't pickable by joblib (though we can parse ast first)
+            # https://docs.python.org/3/library/functions.html#compile
+            # bytecode = compile(code, '<gpt>', 'exec')
+            # https://docs.python.org/3/library/functions.html#exec
+            exec(code, globals)
+        except Exception as e:
+            chat.add_user_error(e)
+            logger.info(f'error: {chat.messages[-1]["content"]}')
+        else:
+            if 'final_result' in globals:
+                break
+
+            chat.add_user_result(globals['result'])
+            logger.info(f'result: {chat.messages[-1]["content"]}')
+
+        history_len += 1
+        if history_len == askai.HISTORY_LEN_MAX:
+            break
+
+    return globals['final_result']

@@ -1,1 +1,1 @@
-from .prompt import make_prompt_messages  # noqa # pyright: ignore
+from .prompt import Chat  # noqa # pyright: ignore

@@ -8,7 +8,7 @@ memory = joblib.Memory(askai.CACHE_DIR, verbose=0)
 
 
 @memory.cache
-def gpt(prompt: str, *, t=1.0) -> str:
+def gpt(prompt: str, *, t: float = 1.0) -> str:
     response = openai.ChatCompletion.create(
         model=askai.OPENAI_MODEL,
         messages=[
