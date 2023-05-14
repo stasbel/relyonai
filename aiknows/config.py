@@ -17,7 +17,7 @@ MODELS_PRICING_DOLLARS_PER_1K_COMPLETITION_TOKENS = {
 }
 
 # cache is stored in main package directory
-CACHE_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), '.askai.cache'))
+CACHE_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), '.aiknows.cache'))
 
 
 @dataclass

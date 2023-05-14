@@ -5,7 +5,7 @@ requires = ["hatchling>=1.14.1"]
 build-backend = "hatchling.build"
 
 [project]
-name = "askai"
+name = "aiknows"
 version = "0.1.0"
 # version parser expected this to be of form ">={python_version}"
 requires-python = ">=3.8"
@@ -29,7 +29,7 @@ dev = [
     "pytest-sugar==0.9.7",
     "pytest-xdist==3.2.1",
 ]
-all = ["askai[prompt]", "askai[dev]"]
+all = ["aiknows[prompt]", "aiknows[dev]"]
 
 [tool.black]
 line-length = 99

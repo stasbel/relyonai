@@ -1,10 +1,11 @@
+import contextlib
 import glob
 import logging
 
 import nbformat
 
-from askai import prompt
-from askai.exceptions import AskAITaskError
+from aiknows import prompt
+from aiknows.exceptions import AIKnowsTaskError
 
 logger = logging.getLogger(__name__)
 
@@ -69,7 +70,8 @@ class ExampleNotebookRuntime:
         code = self.next_cell_code()
         self.pos += 1
 
-        exec(code, self.globals)
+        with contextlib.redirect_stdout(None):  # don't care about stdout in examples
+            exec(code, self.globals)
 
 
 def collect_messages(chat, runtime):
@@ -87,7 +89,7 @@ def collect_messages(chat, runtime):
         try:
             runtime.run_next_cell()
         except Exception as e:
-            if isinstance(e, AskAITaskError):
+            if isinstance(e, AIKnowsTaskError):
                 # should be last cell -- assistant tell to stop process explicitly
                 assert runtime.steps_left == N_LAST_TECHNICAL_CELLS
 

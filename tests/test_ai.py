@@ -1,4 +1,4 @@
-from askai import ai
+from aiknows import ai
 
 
 def test_sum():

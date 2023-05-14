@@ -4,16 +4,16 @@ from typing import Any
 import joblib
 import openai
 
-import askai
-from askai import prompt, utils
-from askai.exceptions import AskAITaskError
+import aiknows
+from aiknows import prompt, utils
+from aiknows.exceptions import AIKnowsTaskError
 
-REVERSVED_KEYWORDS = ('gpt', 'AskAITaskError')
+REVERSVED_KEYWORDS = ('gpt', 'AIKnowsTaskError')
 
 logger = logging.getLogger(__name__)
 
 # shared across processes with local file
-memory = joblib.Memory(askai.config.cache_path, verbose=0)
+memory = joblib.Memory(aiknows.config.cache_path, verbose=0)
 
 
 @memory.cache
@@ -24,24 +24,24 @@ def _generate_or_retrieve_code(prompt_messages):
     if utils.package_exists('tiktoken'):
         import tiktoken
 
-        tokenizer = tiktoken.encoding_for_model(askai.config.model)
+        tokenizer = tiktoken.encoding_for_model(aiknows.config.model)
         prompt_token_len = len(tokenizer.encode('\n'.join(m['content'] for m in prompt_messages)))
         logger.info(f'estimate prompt token length: {prompt_token_len}')
 
     response = openai.ChatCompletion.create(
-        model=askai.config.model,
+        model=aiknows.config.model,
         messages=prompt_messages,
         temperature=0.0,  # maximum truth, minimum randomness
     )
     total_tokens = response['usage']['total_tokens']
     logger.info(f'real prompt token length: {total_tokens}')
-    askai.config.update_session_tokens(response)
+    aiknows.config.update_session_tokens(response)
 
     code = response['choices'][0]['message']['content'].strip()
 
     code = code.split('\n')
     if code[0] != '```python' or code[-1] != '```':
-        raise ValueError(f'invalid code block response from {askai.config.model}')
+        raise ValueError(f'invalid code block response from {aiknows.config.model}')
     code = '\n'.join(code[1:-1]).strip()
 
     return code
@@ -57,8 +57,8 @@ def ai(task: str, **kwargs) -> Any:
     chat.add_user_task(task, **kwargs)
 
     globals = kwargs.copy()
-    globals['gpt'] = askai.gpt
-    globals['AskAITaskError'] = AskAITaskError
+    globals['gpt'] = aiknows.gpt
+    globals['AIKnowsTaskError'] = AIKnowsTaskError
 
     last_raised_exception, history_len = None, 0
     while True:
@@ -68,13 +68,15 @@ def ai(task: str, **kwargs) -> Any:
         logger.info(f'assistant: {chat.messages[-1]["content"]}')
 
         try:
-            # * bytecode isn't pickable by joblib (though we can parse ast first)
             # https://docs.python.org/3/library/functions.html#compile
+            # * bytecode isn't pickable by joblib (though we can parse ast first)
             # bytecode = compile(code, '<gpt>', 'exec')
+
             # https://docs.python.org/3/library/functions.html#exec
+            # * we don't redirect stdout/stderr as we want to feel as natural as possible
             exec(code, globals)
         except Exception as e:
-            if isinstance(e, AskAITaskError):
+            if isinstance(e, AIKnowsTaskError):
                 if e.error_cause:
                     raise e from last_raised_exception
                 else:
@@ -93,7 +95,7 @@ def ai(task: str, **kwargs) -> Any:
             logger.info(f'user/result: {chat.messages[-1]["content"]}')
 
         history_len += 1
-        if history_len == askai.config.history_len_max:
+        if history_len == aiknows.config.history_len_max:
             break
 
     return globals['final_result']

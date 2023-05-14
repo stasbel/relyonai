@@ -19,10 +19,10 @@ TASK: """
 """
 ARGS: {comma list of args}
 - {arg1}: """
-{arg1 explanation, up to askai.TRUNCATE_REPR chars}
+{arg1 explanation, up to aiknows.TRUNCATE_REPR chars}
 """
 - {arg2}: """
-{arg2 explanation, up to askai.TRUNCATE_REPR chars}
+{arg2 explanation, up to aiknows.TRUNCATE_REPR chars}
 """
 {etc.}
 ```
@@ -31,7 +31,7 @@ ARGS: {comma list of args}
 
 ```
 RESULT: """
-{repr(result), up to askai.TRUNCATE_REPR chars}
+{repr(result), up to aiknows.TRUNCATE_REPR chars}
 """
 ```
 
@@ -39,7 +39,7 @@ RESULT: """
 
 ```
 ERROR: """
-{print error (last message), up to askai.TRUNCATE_REPR chars}
+{print error (last message), up to aiknows.TRUNCATE_REPR chars}
 """
 ```
 
@@ -50,6 +50,6 @@ ERROR: """
 {code}
 [final_]result = {result expression}
 # or 
-raise AskAIError({error message})
+raise AIKnowsError({error message})
 \```
 ```

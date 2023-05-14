@@ -1,7 +1,7 @@
 import io
 from typing import Any
 
-from askai import utils
+from aiknows import utils
 
 
 def _type_repr(x):

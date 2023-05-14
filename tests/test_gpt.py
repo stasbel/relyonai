@@ -1,4 +1,4 @@
-from askai import gpt
+from aiknows import gpt
 
 
 def test_progression():

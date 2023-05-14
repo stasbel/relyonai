@@ -3,4 +3,5 @@ build
 dist
 *.egg-info
 __pycache__
-.askai.cache
+.pytest_cache
+.aiknows.cache
