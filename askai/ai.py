@@ -13,7 +13,7 @@ REVERSVED_KEYWORDS = ('gpt', 'AskAITaskError')
 logger = logging.getLogger(__name__)
 
 # shared across processes with local file
-memory = joblib.Memory(askai.CACHE_PATH, verbose=0)
+memory = joblib.Memory(askai.config.cache_path, verbose=0)
 
 
 @memory.cache
@@ -24,23 +24,24 @@ def _generate_or_retrieve_code(prompt_messages):
     if utils.package_exists('tiktoken'):
         import tiktoken
 
-        tokenizer = tiktoken.encoding_for_model(askai.OPENAI_MODEL)
+        tokenizer = tiktoken.encoding_for_model(askai.config.model)
         prompt_token_len = len(tokenizer.encode('\n'.join(m['content'] for m in prompt_messages)))
-        logger.info(f'prompt token length: {prompt_token_len}')
+        logger.info(f'estimate prompt token length: {prompt_token_len}')
 
     response = openai.ChatCompletion.create(
-        model=askai.OPENAI_MODEL,
+        model=askai.config.model,
         messages=prompt_messages,
         temperature=0.0,  # maximum truth, minimum randomness
     )
     total_tokens = response['usage']['total_tokens']
-    logger.info(f'token usage: {total_tokens}')
+    logger.info(f'real prompt token length: {total_tokens}')
+    askai.config.update_session_tokens(response)
 
     code = response['choices'][0]['message']['content'].strip()
 
     code = code.split('\n')
-    # if code[0] != '```python' or code[-1] != '```':
-    #     raise ValueError(f'invalid code block response from {askai.OPENAI_MODEL}')
+    if code[0] != '```python' or code[-1] != '```':
+        raise ValueError(f'invalid code block response from {askai.config.model}')
     code = '\n'.join(code[1:-1]).strip()
 
     return code
@@ -92,7 +93,7 @@ def ai(task: str, **kwargs) -> Any:
             logger.info(f'user/result: {chat.messages[-1]["content"]}')
 
         history_len += 1
-        if history_len == askai.HISTORY_LEN_MAX:
+        if history_len == askai.config.history_len_max:
             break
 
     return globals['final_result']

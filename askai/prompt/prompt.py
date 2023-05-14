@@ -21,7 +21,7 @@ class Chat:
 
     def add_system(self):
         with open(os.path.join(CURRENT_DIR, 'system.txt')) as f:
-            content = f.read().format(python_version=askai.PYTHON_VERSION)
+            content = f.read().format(python_version=askai.config.python_version)
 
         self.messages.append(
             {
@@ -36,9 +36,9 @@ class Chat:
         args_explanations = []
         for k, v in kwargs.items():
             v_explanation = explain.explain(v)
-            if len(v_explanation) > askai.TRUNCATE_REPR:
-                logger.warning('truncating explanation to %d chars', askai.TRUNCATE_REPR)
-                v_explanation = v_explanation[: askai.TRUNCATE_REPR] + '...[truncated]'
+            if len(v_explanation) > askai.config.n_truncate_repr:
+                logger.warning('truncating explanation to %d chars', askai.config.n_truncate_repr)
+                v_explanation = v_explanation[: askai.config.n_truncate_repr] + '...[truncated]'
 
             args_explanations.append(f'- {k}: """\n{v_explanation}\n"""')
 
@@ -57,9 +57,9 @@ class Chat:
 
     def add_user_result(self, result):
         result_repr = repr(result)
-        if len(result_repr) > askai.TRUNCATE_REPR:
-            logger.warning('truncating result repr to %d chars', askai.TRUNCATE_REPR)
-            result_repr = result_repr[: askai.TRUNCATE_REPR] + '...[truncated]'
+        if len(result_repr) > askai.config.n_truncate_repr:
+            logger.warning('truncating result repr to %d chars', askai.config.n_truncate_repr)
+            result_repr = result_repr[: askai.config.n_truncate_repr] + '...[truncated]'
 
         self.messages.append({'role': 'user', 'content': f'RESULT: """\n{result_repr}\n"""'})
 
@@ -69,9 +69,9 @@ class Chat:
         traceback_repr = ''.join(traceback.format_exception_only(type(error), error)).strip()
         error_repr = f'{last_frame_repr}\n{traceback_repr}'
 
-        if len(error_repr) > askai.TRUNCATE_REPR:
-            logger.warning('truncating error repr to %d chars', askai.TRUNCATE_REPR)
-            error_repr = error_repr[: askai.TRUNCATE_REPR] + '...[truncated]'
+        if len(error_repr) > askai.config.n_truncate_repr:
+            logger.warning('truncating error repr to %d chars', askai.config.n_truncate_repr)
+            error_repr = error_repr[: askai.config.n_truncate_repr] + '...[truncated]'
 
         self.messages.append({'role': 'user', 'content': f'ERROR: """\n{error_repr}\n"""'})
 
