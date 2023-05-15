@@ -1,11 +1,12 @@
 # schema
 
-## system
+![schema](aiknows.excalidraw.png)
 
+## system
 ```
 {system overview}
 - {system point 0}
-- {system point 1}
+- {system point 1} 
 {etc.}
 ```
 

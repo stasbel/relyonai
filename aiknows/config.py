@@ -1,7 +1,10 @@
+import logging
 import os
 import re
 from dataclasses import dataclass
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 with open(os.path.join(os.path.dirname(__file__), '../pyproject.toml'), 'r') as f:
     PYTHON_VERSION = re.findall(r'requires-python\s*=\s*">=([\d.]+)"', f.read(), re.IGNORECASE)[0]
@@ -27,6 +30,7 @@ class _Config:
     n_truncate_repr: int = 150
     history_len_max: int = 5
     cache_path: str = CACHE_PATH
+    # log_level: str = 'warning'
 
     # more like a common private var
     _session_n_prompt_tokens: int = 0
@@ -35,10 +39,16 @@ class _Config:
     def __init__(self) -> None:
         super().__init__()
 
+        # # triggers logging
+        # self.__setattr__('log_level', self.log_level)
+
     def __setattr__(self, key: str, value: Any) -> None:
         if key == 'model':
             if value not in AVAILABLE_MODELS:
                 raise ValueError(f'invalid model {value}, must be one of {AVAILABLE_MODELS}')
+
+        # if key == 'log_level':
+        #     logger.setLevel(logging.getLevelName(value.upper()))
 
         return super().__setattr__(key, value)
 
@@ -57,5 +67,5 @@ class _Config:
         return prompt_money + completition_money
 
 
-# not thread/process safe :(
+# not thread/process safe :( 😭
 config = _Config()

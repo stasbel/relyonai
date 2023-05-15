@@ -30,8 +30,8 @@ class Chat:
             }
         )
 
-    def add_user_task(self, task, **kwargs):
-        schema = 'TASK: """\n{task}\n"""\nARGS: {args_list}\n{args_explanations}'
+    def add_user_task(self, task, reuse, **kwargs):
+        schema = 'TASK: """\n{task}\n"""\nREUSE: {reuse}\nARGS: {args_list}\n{args_explanations}'
         args_list_repr = ', '.join(kwargs.keys())
         args_explanations = []
         for k, v in kwargs.items():
@@ -46,6 +46,7 @@ class Chat:
 
         content = schema.format(
             task=task,
+            reuse=reuse,
             args_list=args_list_repr,
             args_explanations='\n'.join(args_explanations),
         ).strip()
@@ -80,10 +81,10 @@ class Chat:
     def add_assistant(self, code):
         self.messages.append({'role': 'assistant', 'content': f'```python\n{code}\n```'})
 
-    def save(self, name):
+    def save(self, name='example'):
         with open(os.path.join(CURRENT_DIR, f'examples/{name}.json'), 'w') as f:
             json.dump(self.messages, f)
 
-    def load(self, name):
+    def load(self, name='example'):
         with open(os.path.join(CURRENT_DIR, f'examples/{name}.json'), 'r') as f:
             self.messages.extend(json.load(f))

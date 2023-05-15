@@ -7,7 +7,7 @@ ad-hoc prompt crafting
 * [SCHEMA](SCHEMA.md)
 * [examples/README.md](examples/README.md)
 
-## end
+## finish
 
 * [system.txt](system.txt)
 * [examples/examples.json](examples/examples.json)

@@ -5,10 +5,7 @@ import joblib
 import openai
 
 import aiknows
-from aiknows import prompt, utils
-from aiknows.exceptions import AIKnowsTaskError
-
-REVERSVED_KEYWORDS = ('gpt', 'AIKnowsTaskError')
+from aiknows import prompt, runtime, utils
 
 logger = logging.getLogger(__name__)
 
@@ -47,9 +44,9 @@ def _generate_or_retrieve_code(prompt_messages):
     return code
 
 
-def ai(task: str, **kwargs) -> Any:
-    if set(kwargs.keys()) & set(REVERSVED_KEYWORDS):
-        raise ValueError(f'reserved keywords: {REVERSVED_KEYWORDS}')
+def ai(task: str, *, save_runtime: bool = False, **kwargs) -> Any:
+    if set(kwargs.keys()) & set(runtime.REVERSVED_KEYWORDS):
+        raise ValueError(f'reserved keywords: {runtime.REVERSVED_KEYWORDS}')
 
     chat = prompt.Chat()
     chat.add_system()
@@ -58,7 +55,7 @@ def ai(task: str, **kwargs) -> Any:
 
     globals = kwargs.copy()
     globals['gpt'] = aiknows.gpt
-    globals['AIKnowsTaskError'] = AIKnowsTaskError
+    globals['AIKnowsTaskError'] = runtime.FinishTaskErrorSignal
 
     last_raised_exception, history_len = None, 0
     while True:
