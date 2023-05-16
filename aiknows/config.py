@@ -27,7 +27,7 @@ CACHE_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), '.aiknows.c
 class _Config:
     python_version: str = PYTHON_VERSION
     model: str = 'gpt-3.5-turbo'
-    n_truncate_repr: int = 150
+    n_truncate_repr: int = 1000
     history_len_max: int = 5
     cache_path: str = CACHE_PATH
     # log_level: str = 'warning'

@@ -36,8 +36,8 @@ def _generate_or_retrieve_code(prompt_messages):
     code = response['choices'][0]['message']['content'].strip()
 
     code = code.split('\n')
-    # if code[0] != '```python' or code[-1] != '```':
-    #     raise ValueError(f'invalid code block response from {config.model}')
+    if code[0] != '```python' or code[-1] != '```':
+        raise ValueError(f'invalid code block response from {config.model}')
     code = '\n'.join(code[1:-1]).strip()
 
     return code
@@ -50,19 +50,24 @@ def ai(task: str, *, save_runtime: bool = False, **kwargs) -> Any:
 
     chat = prompt.Chat()
     chat.add_system()
+    # chat.log_last(logging.INFO)
     chat.load('examples')
     chat.add_user_task(task, False, **kwargs)
+    chat.log_last(logging.INFO)
     # chat.print()
 
     result, last_error, history_len = None, None, 0
     while True:
-        code = _generate_or_retrieve_code(chat.messages)
-        logger.info(f'code:\n{code}')
-
         try:
+            # there could be an error too
+            code = _generate_or_retrieve_code(chat.messages)
+
             # we don't redirect stdout/stderr as we want to feel as natural as possible
             result = local_runtime.run(code)
         except Exception as e:
+            chat.add_assistant(code)
+            chat.log_last(logging.INFO)
+
             if isinstance(e, runtime.FinishTaskOKSignal):
                 result = e.result
                 break
@@ -73,14 +78,14 @@ def ai(task: str, *, save_runtime: bool = False, **kwargs) -> Any:
                 else:
                     raise e
 
-            chat.add_assistant(code)
             chat.add_user_error(e)
-            logger.info(f'error:\n{e}')
+            chat.log_last(logging.INFO)
             last_error = e
         else:
             chat.add_assistant(code)
+            chat.log_last(logging.INFO)
             chat.add_user_result(result)
-            logger.info(f'result:\n{result}')
+            chat.log_last(logging.INFO)
             local_runtime.add_vars({'_': result})
 
         history_len += 1

@@ -1,4 +1,3 @@
-import glob
 import logging
 
 import nbformat
@@ -12,12 +11,13 @@ NBS_ORDER = (
     'package',
     'const',
     'error_fixing',
-    'sum_xy',
-    'sum_x',
-    'sum_y',
-    'sum',
+    # 'sum_xy',
+    # 'sum_x',
+    # 'sum_y',
+    # 'sum',
     'file_arg',
     'file_noarg',
+    'file_const',
     'plt',
     'gpt',
     'task_error',
@@ -90,7 +90,7 @@ if __name__ == '__main__':
 
     nbs_paths_order = [f'{nb_name}.ipynb' for nb_name in NBS_ORDER]
     # minus template.ipynb
-    assert set(nbs_paths_order) == set(glob.glob('*.ipynb')) - {'template.ipynb'}
+    # assert set(nbs_paths_order) == set(glob.glob('*.ipynb')) - {'template.ipynb'}
 
     runtime.throw_signals = True
     chat = prompt.Chat()

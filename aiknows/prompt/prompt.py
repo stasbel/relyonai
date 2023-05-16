@@ -3,8 +3,7 @@ import logging
 import os
 import traceback
 
-import aiknows
-from aiknows import explain
+from aiknows import config, explain
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +20,7 @@ class Chat:
 
     def add_system(self):
         with open(os.path.join(CURRENT_DIR, 'system.txt')) as f:
-            content = f.read().format(python_version=aiknows.config.python_version)
+            content = f.read().format(python_version=config.python_version)
 
         self.messages.append(
             {
@@ -36,11 +35,9 @@ class Chat:
         args_explanations = []
         for k, v in kwargs.items():
             v_explanation = explain.explain(v)
-            if len(v_explanation) > aiknows.config.n_truncate_repr:
-                logger.warning(
-                    'truncating explanation to %d chars', aiknows.config.n_truncate_repr
-                )
-                v_explanation = v_explanation[: aiknows.config.n_truncate_repr] + '...[truncated]'
+            if len(v_explanation) > config.n_truncate_repr:
+                logger.warning('truncating explanation to %d chars', config.n_truncate_repr)
+                v_explanation = v_explanation[: config.n_truncate_repr] + '...[truncated]'
 
             args_explanations.append(f'- {k}: """\n{v_explanation}\n"""')
 
@@ -60,9 +57,9 @@ class Chat:
 
     def add_user_result(self, result):
         result_repr = repr(result)
-        if len(result_repr) > aiknows.config.n_truncate_repr:
-            logger.warning('truncating result repr to %d chars', aiknows.config.n_truncate_repr)
-            result_repr = result_repr[: aiknows.config.n_truncate_repr] + '...[truncated]'
+        if len(result_repr) > config.n_truncate_repr:
+            logger.warning('truncating result repr to %d chars', config.n_truncate_repr)
+            result_repr = result_repr[: config.n_truncate_repr] + '...[truncated]'
 
         self.messages.append({'role': 'user', 'content': f'RESULT: """\n{result_repr}\n"""'})
 
@@ -72,9 +69,9 @@ class Chat:
         traceback_repr = ''.join(traceback.format_exception_only(type(error), error)).strip()
         error_repr = f'{last_frame_repr}\n{traceback_repr}'
 
-        if len(error_repr) > aiknows.config.n_truncate_repr:
-            logger.warning('truncating error repr to %d chars', aiknows.config.n_truncate_repr)
-            error_repr = error_repr[: aiknows.config.n_truncate_repr] + '...[truncated]'
+        if len(error_repr) > config.n_truncate_repr:
+            logger.warning('truncating error repr to %d chars', config.n_truncate_repr)
+            error_repr = error_repr[: config.n_truncate_repr] + '...[truncated]'
 
         self.messages.append({'role': 'user', 'content': f'ERROR: """\n{error_repr}\n"""'})
 
@@ -87,7 +84,15 @@ class Chat:
 
     def load(self, name='example'):
         with open(os.path.join(CURRENT_DIR, f'examples/{name}.json'), 'r') as f:
+            # ms = json.load(f)
+            # for m in ms:
+            #     m['role'] = 'system'
+            # self.messages.extend(ms)
             self.messages.extend(json.load(f))
+
+    def log_last(self, level):
+        message = self.messages[-1]
+        logger.log(level, f"# {message['role']}\n{message['content']}")
 
     def print(self):
         for message in self.messages:
