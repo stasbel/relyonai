@@ -35,11 +35,6 @@ def _generate_or_retrieve_code(prompt_messages):
 
     code = response['choices'][0]['message']['content'].strip()
 
-    code = code.split('\n')
-    if code[0] != '```python' or code[-1] != '```':
-        raise ValueError(f'invalid code block response from {config.model}')
-    code = '\n'.join(code[1:-1]).strip()
-
     return code
 
 
@@ -58,10 +53,9 @@ def ai(task: str, *, save_runtime: bool = False, **kwargs) -> Any:
 
     result, last_error, history_len = None, None, 0
     while True:
-        try:
-            # there could be an error too
-            code = _generate_or_retrieve_code(chat.messages)
+        code = _generate_or_retrieve_code(chat.messages)
 
+        try:
             # we don't redirect stdout/stderr as we want to feel as natural as possible
             result = local_runtime.run(code)
         except Exception as e:

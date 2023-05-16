@@ -34,8 +34,11 @@ def test_multi():
     assert ai('return answer from d', d={'Q': 'bark', 'A': 'dog'}) == 'dog'
 
 
+# to be hosent, gpt-3.5 is too dumb to understand when to use args and when to creat a func
+# I mean you could get it to work on some cases, but there it's not a robust solution
+# I think rn best strategy is to say explicitly: use arg if task say so, otherwise create a func
 def test_lambdas():
-    assert ai('filter non primes from l -> list', l=[1, 2, 3, 4, 5, 6, 7, 8, 9]) == [2, 3, 5, 7]
+    assert ai('keep the non-primes in l', l=[1, 2, 3, 4, 5, 6, 7, 8, 9]) == [1, 4, 6, 8, 9]
     assert ai('filter non primes out')([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]) == [2, 3, 5, 7]
     f = ai('filter palindromes away')
     assert f(['hello', 'world', 'racecar', 'foo', 'bar']) == ['hello', 'world', 'foo', 'bar']

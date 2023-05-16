@@ -13,10 +13,10 @@ CURRENT_DIR = os.path.dirname(__file__)
 class Chat:
     # refer to SCHEMA.md for the format
 
-    def __init__(self, messages=None):
+    def __init__(self):
         super().__init__()
 
-        self.messages = messages or []
+        self.messages = []
 
     def add_system(self):
         with open(os.path.join(CURRENT_DIR, 'system.txt')) as f:
@@ -31,7 +31,7 @@ class Chat:
 
     def add_user_task(self, task, reuse, **kwargs):
         schema = 'TASK: """\n{task}\n"""\nREUSE: {reuse}\nARGS: {args_list}\n{args_explanations}'
-        args_list_repr = ', '.join(kwargs.keys())
+        args_list_repr = '[' + ', '.join(kwargs.keys()) + ']'
         args_explanations = []
         for k, v in kwargs.items():
             v_explanation = explain.explain(v)
@@ -76,7 +76,7 @@ class Chat:
         self.messages.append({'role': 'user', 'content': f'ERROR: """\n{error_repr}\n"""'})
 
     def add_assistant(self, code):
-        self.messages.append({'role': 'assistant', 'content': f'```python\n{code}\n```'})
+        self.messages.append({'role': 'assistant', 'content': code})
 
     def save(self, name='example'):
         with open(os.path.join(CURRENT_DIR, f'examples/{name}.json'), 'w') as f:
@@ -84,11 +84,17 @@ class Chat:
 
     def load(self, name='example'):
         with open(os.path.join(CURRENT_DIR, f'examples/{name}.json'), 'r') as f:
-            # ms = json.load(f)
+            # examples = json.load(f)
             # for m in ms:
             #     m['role'] = 'system'
             # self.messages.extend(ms)
             self.messages.extend(json.load(f))
+
+        # message = ['# EXAMPLES\n']
+        # for e in examples:
+        #     message.append(f'## {e["role"]}\n\n{e["content"]}\n')
+
+        # self.messages.append({'role': 'system', 'content': '\n'.join(message)})
 
     def log_last(self, level):
         message = self.messages[-1]

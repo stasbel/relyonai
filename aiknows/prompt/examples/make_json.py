@@ -11,10 +11,10 @@ NBS_ORDER = (
     'package',
     'const',
     'error_fixing',
-    # 'sum_xy',
+    'sum_xy',
     # 'sum_x',
     # 'sum_y',
-    # 'sum',
+    'sum',
     'file_arg',
     'file_noarg',
     'file_const',
@@ -22,7 +22,7 @@ NBS_ORDER = (
     'gpt',
     'task_error',
     'task_error_cause',
-    'function',
+    'lambdas',
     'exploration',
     # 'template',
 )
@@ -45,7 +45,7 @@ class ExampleNotebookParser:
         assert cell.cell_type == 'code'
         code = cell.source.strip()
         self.pos += 1
-        return code
+        return f'```python\n{code}\n```'
 
 
 def collect_messages(chat, nb_path):

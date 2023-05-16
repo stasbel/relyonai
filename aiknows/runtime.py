@@ -144,6 +144,16 @@ class LocalRuntime:
 
         self.clear()
 
+    def _strip_markdown(self, code):
+        code = code.split('\n')
+        if code[0] != '```python' or code[-1] != '```':
+            raise ValueError(
+                'code block format is invalid: make sure assistant response'
+                'starts with "```python" and ends with "```"'
+            )
+        code = '\n'.join(code[1:-1]).strip()
+        return code
+
     def _execute_jupyter_style(self, code):
         """jupyter style == return last expression value or None if has ;"""
 
@@ -180,6 +190,7 @@ class LocalRuntime:
             return None
 
     def run(self, code: str, *, supress_stdout: bool = False) -> Any:
+        code = self._strip_markdown(code)
         with contextlib.redirect_stdout(None) if supress_stdout else contextlib.nullcontext():
             return self._execute_jupyter_style(code)
 
