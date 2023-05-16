@@ -54,7 +54,7 @@ class _Config:
 
     def update_session_tokens(self, response) -> None:
         self._session_n_prompt_tokens += response['usage']['prompt_tokens']
-        self._session_n_completition_tokens += response['usage']['completion_tokens']
+        self._session_n_completition_tokens += response['usage'].get('completion_tokens', 0)
 
     @property
     def session_dollars_spend(self) -> float:

@@ -22,6 +22,8 @@ NBS_ORDER = (
     'gpt',
     'task_error',
     'task_error_cause',
+    'function',
+    'exploration',
     # 'template',
 )
 

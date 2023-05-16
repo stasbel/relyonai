@@ -147,7 +147,10 @@ class LocalRuntime:
     def _execute_jupyter_style(self, code):
         """jupyter style == return last expression value or None if has ;"""
 
-        # print('code:', code)
+        # https://docs.python.org/3/library/functions.html#compile
+        # https://docs.python.org/3/library/functions.html#exec
+        # * bytecode isn't pickable by joblib (though we can parse ast first)
+        # bytecode = compile(code, '<gpt>', 'exec')
 
         code = code.strip()
 

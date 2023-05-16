@@ -88,3 +88,7 @@ class Chat:
     def load(self, name='example'):
         with open(os.path.join(CURRENT_DIR, f'examples/{name}.json'), 'r') as f:
             self.messages.extend(json.load(f))
+
+    def print(self):
+        for message in self.messages:
+            print(f"# {message['role']}\n\n{message['content']}\n")
