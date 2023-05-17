@@ -118,18 +118,28 @@ class Chat:
         with open(os.path.join(CURRENT_DIR, path), 'r') as f:
             self.messages.extend(json.load(f))
 
+    @staticmethod
+    def message_repr(message, nlx, nly):
+        return '# {role}{name}{nlxs}{content}{nlys}'.format(
+            role=message['role'],
+            name=f' name={message["name"]}' if 'name' in message else '',
+            nlxs='\n' * nlx,
+            content=message['content'],
+            nlys='\n' * nly,
+        )
+
     def log_last_message(self, level=None, *, stdout=False):
         assert level is not None or stdout
         message = self.messages[-1]
         if stdout:
-            print(f'# {message["role"]}\n\n{message["content"]}')
+            print(self.message_repr(message, 2, 1))
         else:
-            logger.log(level, f"# {message['role']}\n{message['content']}")
+            logger.log(level, self.message_repr(message, 1, 0))
 
     def log_all_messages(self, level=None, *, stdout=False):
         assert level is not None or stdout
         for message in self.messages:
             if stdout:
-                print(f'# {message["role"]}\n\n{message["content"]}\n')
+                print(self.message_repr(message, 2, 1))
             else:
-                logger.log(level, f"# {message['role']}\n{message['content']}")
+                logger.log(level, self.message_repr(message, 1, 0))

@@ -86,7 +86,7 @@ if __name__ == '__main__':
     # minus template.ipynb
     # assert set(nbs_paths_order) == set(glob.glob('*.ipynb')) - {'template.ipynb'}
 
-    chat, runtime = ak_prompt.Chat(add_example_names=True), ak_runtime.LocalRuntime()
+    chat, runtime = ak_prompt.Chat(add_example_names=False), ak_runtime.LocalRuntime()
     for nb_path in nbs_paths_order:
         collect_messages(chat, runtime, nb_path)
 

@@ -1,5 +1,6 @@
 import logging
 import os
+import shutil
 import sys
 from dataclasses import dataclass
 from typing import Any
@@ -54,6 +55,10 @@ class _Config:
         #     logger.setLevel(logging.getLevelName(value.upper()))
 
         return super().__setattr__(key, value)
+
+    def clear_cache(self) -> None:
+        if os.path.exists(self.cache_path) and os.path.isdir(self.cache_path):
+            shutil.rmtree(self.cache_path)
 
     def update_tokens(self, response) -> None:
         self._n_prompt_tokens += response['usage'].get('prompt_tokens', 0)
