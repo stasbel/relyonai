@@ -29,6 +29,9 @@ dev = [
     "pytest==7.3.1",
     "pytest-sugar==0.9.7",
     "pytest-xdist==3.2.1",
+    "tox==4.5.1",
+    # external packages
+    "pandas==2.0.1",
 ]
 all = ["aiknows[prompt]", "aiknows[dev]"]
 
@@ -48,3 +51,14 @@ max-line-length = 99
 [tool.pytest.ini_options]
 # with caching, single process is faster
 addopts="-n 4"
+
+[tool.tox]
+legacy_tox_ini = """
+[tox]
+env_list = python3{6,7}, py3{8,9,10,11}
+
+[testenv]
+extras = dev
+commands = pytest
+pass_env = OPENAI_API_KEY
+"""

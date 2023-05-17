@@ -1,13 +1,15 @@
 import logging
 import os
-import re
+import sys
 from dataclasses import dataclass
 from typing import Any
 
 logger = logging.getLogger(__name__)
 
-with open(os.path.join(os.path.dirname(__file__), '../pyproject.toml'), 'r') as f:
-    PYTHON_VERSION = re.findall(r'requires-python\s*=\s*">=([\d.]+)"', f.read(), re.IGNORECASE)[0]
+# with open(os.path.join(os.path.dirname(__file__), '../pyproject.toml'), 'r') as f:
+# PYTHON_VERSION = re.findall(r'requires-python\s*=\s*">=([\d.]+)"', f.read(), re.IGNORECASE)[0]
+
+PYTHON_VERSION = f'{sys.version_info.major}.{sys.version_info.minor}'
 
 AVAILABLE_MODELS = ('gpt-3.5-turbo', 'gpt-4')
 MODELS_PRICING_DOLLARS_PER_1K_PROMPT_TOKENS = {

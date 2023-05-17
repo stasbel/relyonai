@@ -43,8 +43,11 @@ def test_multi():
 # I mean you could get it to work on some cases, but there it's not a robust solution
 # I think rn best strategy is to say explicitly: use arg if task say so, otherwise create a func
 # we splits sync https calls for xdist to perform the best
+
+
 def test_lambdas_1():
-    assert ai('keep the non-primes in l', l=[1, 2, 3, 4, 5, 6, 7, 8, 9]) == [1, 4, 6, 8, 9]
+    list_x = [2, 3, 4, 5, 6, 7, 8, 9]
+    assert ai('a list of non primes in list_x', list_x=list_x) == [4, 6, 8, 9]
 
 
 def test_lambdas_2():
@@ -72,7 +75,7 @@ def test_lambdas_6():
 def test_files_1(file_path):
     assert os.path.exists(file_path)
     assert ai('read file')(file_path) == 'content'
-    assert ai('read file', file=file_path) == 'content'
+    assert ai('read file at path file', file=file_path) == 'content'
 
 
 def test_files_2(file_path):

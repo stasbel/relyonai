@@ -14,10 +14,11 @@ CURRENT_DIR = os.path.dirname(__file__)
 class Chat:
     # refer to SCHEMA.md for the format
 
-    def __init__(self):
+    def __init__(self, add_example_names=False):
         super().__init__()
 
         self.messages = []
+        self.add_example_names = add_example_names
 
     def load_system(self):
         with open(os.path.join(CURRENT_DIR, 'system.txt')) as f:
@@ -32,6 +33,20 @@ class Chat:
 
     def load_examples(self):
         self.load('examples/examples.json')
+
+    def wrap_example_name(self, role, content):
+        if self.add_example_names:
+            # https://github.com/openai/openai-python/blob/main/chatml.md#few-shot-prompting
+            return {
+                'role': 'system',
+                'name': f'example_{role}',
+                'content': content,
+            }
+        else:
+            return {
+                'role': role,
+                'content': content,
+            }
 
     def add_user_task(self, task, reuse, **kwargs):
         schema = 'TASK: """\n{task}\n"""\nREUSE: {reuse}\nARGS: {args_list}\n{args_explanations}'
@@ -52,12 +67,7 @@ class Chat:
             args_explanations='\n'.join(args_explanations),
         ).strip()
 
-        self.messages.append(
-            {
-                'role': 'user',
-                'content': content,
-            }
-        )
+        self.messages.append(self.wrap_example_name('user', content))
 
     def add_user_result(self, result):
         result_repr = repr(result)
@@ -65,7 +75,8 @@ class Chat:
             logger.warning('truncating result repr to %d chars', config.n_truncate_repr)
             result_repr = result_repr[: config.n_truncate_repr] + '...[truncated]'
 
-        self.messages.append({'role': 'user', 'content': f'RESULT: """\n{result_repr}\n"""'})
+        content = f'RESULT: """\n{result_repr}\n"""'
+        self.messages.append(self.wrap_example_name('user', content))
 
     def add_user_error(self, error):
         tb = traceback.extract_tb(error.__traceback__)
@@ -77,7 +88,8 @@ class Chat:
             logger.warning('truncating error repr to %d chars', config.n_truncate_repr)
             error_repr = error_repr[: config.n_truncate_repr] + '...[truncated]'
 
-        self.messages.append({'role': 'user', 'content': f'ERROR: """\n{error_repr}\n"""'})
+        content = f'ERROR: """\n{error_repr}\n"""'
+        self.messages.append(self.wrap_example_name('user', content))
 
     @staticmethod
     def add_code_markdown(code):
@@ -89,13 +101,14 @@ class Chat:
         if code[0] != '```python' or code[-1] != '```':
             raise ValueError(
                 'code block format is invalid: make sure assistant response'
-                'starts with "```python" and ends with "```"'
+                ' starts with "```python", ends with "```" and have valid python code inside'
             )
         code = '\n'.join(code[1:-1]).strip()
         return code
 
     def add_assistant(self, code):
-        self.messages.append({'role': 'assistant', 'content': self.add_code_markdown(code)})
+        content = self.add_code_markdown(code)
+        self.messages.append(self.wrap_example_name('assistant', content))
 
     def save(self, path):
         with open(os.path.join(CURRENT_DIR, path), 'w') as f:
