@@ -1,44 +1,12 @@
 import logging
 from typing import Any
 
-import joblib
-import openai
-
 from aiknows import config
+from aiknows import llm as ak_llm
 from aiknows import prompt as ak_prompt
 from aiknows import runtime as ak_runtime
-from aiknows import utils
 
 logger = logging.getLogger(__name__)
-
-# shared across processes with local file
-memory = joblib.Memory(config.cache_path, verbose=0)
-
-
-@memory.cache
-def _generate_or_retrieve_code(prompt_messages):
-    logger.info('cache miss, generating bytecode')
-    logger.info(f'len prompt messages: {len(prompt_messages)}')
-
-    if utils.package_exists('tiktoken'):
-        import tiktoken
-
-        tokenizer = tiktoken.encoding_for_model(config.model)
-        prompt_token_len = len(tokenizer.encode('\n'.join(m['content'] for m in prompt_messages)))
-        logger.info(f'estimate prompt token length: {prompt_token_len}')
-
-    response = openai.ChatCompletion.create(
-        model=config.model,
-        messages=prompt_messages,
-        temperature=0.0,  # maximum truth, minimum randomness
-    )
-    total_tokens = response['usage']['total_tokens']
-    logger.info(f'real prompt token length: {total_tokens}')
-    config.update_tokens(response)
-
-    code = response['choices'][0]['message']['content'].strip()
-
-    return code
 
 
 class Session:
@@ -56,7 +24,7 @@ class Session:
 
         result, last_error, history_len = None, None, 0
         while True:
-            code = _generate_or_retrieve_code(self.chat.messages)
+            code = ak_llm.generate_or_retrieve_code(self.chat.messages)
 
             try:
                 # chat is common to not follow rules all the time

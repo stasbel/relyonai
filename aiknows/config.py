@@ -33,6 +33,7 @@ class _Config:
     history_len_max: int = 5
     cache_path: str = CACHE_PATH
     # log_level: str = 'warning'
+    dollars_limit: float = 1.0
 
     # more like a common private var
     _n_prompt_tokens: int = 0
@@ -55,11 +56,11 @@ class _Config:
         return super().__setattr__(key, value)
 
     def update_tokens(self, response) -> None:
-        self._n_prompt_tokens += response['usage']['prompt_tokens']
+        self._n_prompt_tokens += response['usage'].get('prompt_tokens', 0)
         self._n_completition_tokens += response['usage'].get('completion_tokens', 0)
 
     @property
-    def dollars_spend(self) -> float:
+    def dollars_spent(self) -> float:
         prompt_money = MODELS_PRICING_DOLLARS_PER_1K_PROMPT_TOKENS[self.model] * (
             self._n_prompt_tokens / 1000
         )
