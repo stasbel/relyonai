@@ -3,7 +3,8 @@ import logging
 import os
 import traceback
 
-from aiknows import config, explain
+from aiknows import config
+from aiknows import explain as ak_explain
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +19,7 @@ class Chat:
 
         self.messages = []
 
-    def add_system(self):
+    def load_system(self):
         with open(os.path.join(CURRENT_DIR, 'system.txt')) as f:
             content = f.read().format(python_version=config.python_version)
 
@@ -29,12 +30,15 @@ class Chat:
             }
         )
 
+    def load_examples(self):
+        self.load('examples/examples.json')
+
     def add_user_task(self, task, reuse, **kwargs):
         schema = 'TASK: """\n{task}\n"""\nREUSE: {reuse}\nARGS: {args_list}\n{args_explanations}'
         args_list_repr = '[' + ', '.join(kwargs.keys()) + ']'
         args_explanations = []
         for k, v in kwargs.items():
-            v_explanation = explain.explain(v)
+            v_explanation = ak_explain.explain(v)
             if len(v_explanation) > config.n_truncate_repr:
                 logger.warning('truncating explanation to %d chars', config.n_truncate_repr)
                 v_explanation = v_explanation[: config.n_truncate_repr] + '...[truncated]'
@@ -75,31 +79,44 @@ class Chat:
 
         self.messages.append({'role': 'user', 'content': f'ERROR: """\n{error_repr}\n"""'})
 
-    def add_assistant(self, code):
-        self.messages.append({'role': 'assistant', 'content': code})
+    @staticmethod
+    def add_code_markdown(code):
+        return f'```python\n{code}\n```'
 
-    def save(self, name='example'):
-        with open(os.path.join(CURRENT_DIR, f'examples/{name}.json'), 'w') as f:
+    @staticmethod
+    def strip_code_markdown(code):
+        code = code.split('\n')
+        if code[0] != '```python' or code[-1] != '```':
+            raise ValueError(
+                'code block format is invalid: make sure assistant response'
+                'starts with "```python" and ends with "```"'
+            )
+        code = '\n'.join(code[1:-1]).strip()
+        return code
+
+    def add_assistant(self, code):
+        self.messages.append({'role': 'assistant', 'content': self.add_code_markdown(code)})
+
+    def save(self, path):
+        with open(os.path.join(CURRENT_DIR, path), 'w') as f:
             json.dump(self.messages, f)
 
-    def load(self, name='example'):
-        with open(os.path.join(CURRENT_DIR, f'examples/{name}.json'), 'r') as f:
-            # examples = json.load(f)
-            # for m in ms:
-            #     m['role'] = 'system'
-            # self.messages.extend(ms)
+    def load(self, path):
+        with open(os.path.join(CURRENT_DIR, path), 'r') as f:
             self.messages.extend(json.load(f))
 
-        # message = ['# EXAMPLES\n']
-        # for e in examples:
-        #     message.append(f'## {e["role"]}\n\n{e["content"]}\n')
-
-        # self.messages.append({'role': 'system', 'content': '\n'.join(message)})
-
-    def log_last(self, level):
+    def log_last_message(self, level=None, *, stdout=False):
+        assert level is not None or stdout
         message = self.messages[-1]
-        logger.log(level, f"# {message['role']}\n{message['content']}")
+        if stdout:
+            print(f'# {message["role"]}\n\n{message["content"]}')
+        else:
+            logger.log(level, f"# {message['role']}\n{message['content']}")
 
-    def print(self):
+    def log_all_messages(self, level=None, *, stdout=False):
+        assert level is not None or stdout
         for message in self.messages:
-            print(f"# {message['role']}\n\n{message['content']}\n")
+            if stdout:
+                print(f'# {message["role"]}\n\n{message["content"]}\n')
+            else:
+                logger.log(level, f"# {message['role']}\n{message['content']}")

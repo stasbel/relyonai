@@ -18,7 +18,7 @@ def gpt(prompt: str, *, t: float = DEFAULT_TEMPERATURE) -> str:
         ],
         temperature=t,
     )
-    config.update_session_tokens(response)
+    config.update_tokens(response)
     return response['choices'][0]['message']['content'].strip()
 
 

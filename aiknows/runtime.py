@@ -2,7 +2,8 @@ import ast
 import contextlib
 from typing import Any, Callable, Dict, Optional
 
-from aiknows import gpt, prompt
+from aiknows import gpt
+from aiknows import prompt as ak_prompt
 
 
 class ControlFlowSignal(Exception):
@@ -66,8 +67,19 @@ class FinishTaskErrorSignal(ControlFlowSignal):
         )
 
 
-throw_signals = False
+_can_throw_signals = False
 _last_validator = None
+
+
+@contextlib.contextmanager
+def enable_signals() -> None:
+    global _can_throw_signals
+    assert not _can_throw_signals
+    _can_throw_signals = True
+    try:
+        yield
+    finally:
+        _can_throw_signals = False
 
 
 def setup_task(
@@ -94,25 +106,27 @@ def setup_task(
     assert len(set(LocalRuntime.RESERVED_GLOBALS.keys()) & set(args.keys())) == 0
 
     # print assistant's prompt (user/task)
-    chat = prompt.Chat()
+    chat = ak_prompt.Chat()
     chat.add_user_task(task, reuse, **args)
-    print(chat.messages[-1]['content'])
+    chat.log_last_message(stdout=True)
 
     # construct context
     if not reuse:
-        # we can't clean globals in jupyter
-        if throw_signals:
+        # when we executing inside jupyter this is unset
+        # because we can't clear globals in jupyter -- this would break stuff
+        if _can_throw_signals:
             globals.clear()
-        clean_local_runtime = LocalRuntime()
-        clean_local_runtime.add_vars(args)
-        globals.update(clean_local_runtime.globals)
+
+        clean_runtime = LocalRuntime()
+        clean_runtime.add_vars(args)
+        globals.update(clean_runtime.globals)
 
     # save validator for later finishing
     global _last_validator
     _last_validator = validator
 
     # only raise exception in real runtime
-    if throw_signals:
+    if _can_throw_signals:
         raise SetupTaskSignal(task, reuse, args)
 
 
@@ -120,12 +134,12 @@ def finish_task_ok(result: Any, message: Optional[str] = None) -> None:
     if _last_validator is not None:
         assert _last_validator(result)
 
-    if throw_signals:
+    if _can_throw_signals:
         raise FinishTaskOKSignal(result, message)
 
 
 def finish_task_error(message: str, error_cause: bool = False) -> None:
-    if throw_signals:
+    if _can_throw_signals:
         raise FinishTaskErrorSignal(message, error_cause)
 
 
@@ -143,16 +157,6 @@ class LocalRuntime:
         self.globals = {}
 
         self.clear()
-
-    def _strip_markdown(self, code):
-        code = code.split('\n')
-        if code[0] != '```python' or code[-1] != '```':
-            raise ValueError(
-                'code block format is invalid: make sure assistant response'
-                'starts with "```python" and ends with "```"'
-            )
-        code = '\n'.join(code[1:-1]).strip()
-        return code
 
     def _execute_jupyter_style(self, code):
         """jupyter style == return last expression value or None if has ;"""
@@ -190,13 +194,16 @@ class LocalRuntime:
             return None
 
     def run(self, code: str, *, supress_stdout: bool = False) -> Any:
-        code = self._strip_markdown(code)
         with contextlib.redirect_stdout(None) if supress_stdout else contextlib.nullcontext():
-            return self._execute_jupyter_style(code)
+            with enable_signals():
+                result = self._execute_jupyter_style(code)
+
+        self.globals['_'] = result
+        return result
 
     def add_vars(self, args: Dict[str, Any]) -> None:
         self.globals.update(args)
 
     def clear(self) -> None:
         self.globals.clear()
-        self.globals.update(self.RESERVED_GLOBALS)
+        self.add_vars(self.RESERVED_GLOBALS)

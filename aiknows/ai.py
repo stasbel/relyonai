@@ -4,7 +4,10 @@ from typing import Any
 import joblib
 import openai
 
-from aiknows import config, prompt, runtime, utils
+from aiknows import config
+from aiknows import prompt as ak_prompt
+from aiknows import runtime as ak_runtime
+from aiknows import utils
 
 logger = logging.getLogger(__name__)
 
@@ -31,59 +34,79 @@ def _generate_or_retrieve_code(prompt_messages):
     )
     total_tokens = response['usage']['total_tokens']
     logger.info(f'real prompt token length: {total_tokens}')
-    config.update_session_tokens(response)
+    config.update_tokens(response)
 
     code = response['choices'][0]['message']['content'].strip()
 
     return code
 
 
-def ai(task: str, *, save_runtime: bool = False, **kwargs) -> Any:
-    runtime.throw_signals = True
-    local_runtime = runtime.LocalRuntime()
-    local_runtime.add_vars(kwargs)
+class Session:
+    def __init__(self, chat, runtime) -> None:
+        super().__init__()
 
-    chat = prompt.Chat()
-    chat.add_system()
-    # chat.log_last(logging.INFO)
-    chat.load('examples')
-    chat.add_user_task(task, False, **kwargs)
-    chat.log_last(logging.INFO)
-    # chat.print()
+        self.chat = chat
+        self.runtime = runtime
+        self.reuse = False
 
-    result, last_error, history_len = None, None, 0
-    while True:
-        code = _generate_or_retrieve_code(chat.messages)
+    def ai(self, task: str, **kwargs) -> Any:
+        self.chat.add_user_task(task, self.reuse, **kwargs)
+        self.chat.log_last_message(logging.INFO)
+        self.reuse = True  # enabling same runtime afterwards
 
-        try:
-            # we don't redirect stdout/stderr as we want to feel as natural as possible
-            result = local_runtime.run(code)
-        except Exception as e:
-            chat.add_assistant(code)
-            chat.log_last(logging.INFO)
+        result, last_error, history_len = None, None, 0
+        while True:
+            code = _generate_or_retrieve_code(self.chat.messages)
 
-            if isinstance(e, runtime.FinishTaskOKSignal):
-                result = e.result
+            try:
+                # chat is common to not follow rules all the time
+                code = self.chat.strip_code_markdown(code)
+
+                result = self.runtime.run(code)
+            except Exception as e:
+                self.chat.add_assistant(code)
+                self.chat.log_last_message(logging.INFO)
+
+                if isinstance(e, ak_runtime.FinishTaskOKSignal):
+                    result = e.result
+                    break
+
+                if isinstance(e, ak_runtime.FinishTaskErrorSignal):
+                    if e.error_cause:
+                        raise e from last_error
+                    else:
+                        raise e
+
+                self.chat.add_user_error(e)
+                self.chat.log_last_message(logging.INFO)
+                last_error = e
+            else:
+                self.chat.add_assistant(code)
+                self.chat.log_last_message(logging.INFO)
+                self.chat.add_user_result(result)
+                self.chat.log_last_message(logging.INFO)
+
+            history_len += 1
+            if history_len == config.history_len_max:
                 break
 
-            if isinstance(e, runtime.FinishTaskErrorSignal):
-                if e.error_cause:
-                    raise e from last_error
-                else:
-                    raise e
+        return result
 
-            chat.add_user_error(e)
-            chat.log_last(logging.INFO)
-            last_error = e
-        else:
-            chat.add_assistant(code)
-            chat.log_last(logging.INFO)
-            chat.add_user_result(result)
-            chat.log_last(logging.INFO)
-            local_runtime.add_vars({'_': result})
 
-        history_len += 1
-        if history_len == config.history_len_max:
-            break
+def ai(task: str, *, save_session: bool = False, **kwargs) -> Any:
+    chat = ak_prompt.Chat()
+    chat.load_system()
+    chat.load_examples()
+    # chat.log_all_messages(stdout=True)
 
-    return result
+    runtime = ak_runtime.LocalRuntime()
+    runtime.add_vars(kwargs)
+
+    session = Session(chat, runtime)
+
+    result = session.ai(task, **kwargs)
+
+    if save_session:
+        return result, session
+    else:
+        return result

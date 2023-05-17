@@ -33,8 +33,8 @@ class _Config:
     # log_level: str = 'warning'
 
     # more like a common private var
-    _session_n_prompt_tokens: int = 0
-    _session_n_completition_tokens: int = 0
+    _n_prompt_tokens: int = 0
+    _n_completition_tokens: int = 0
 
     def __init__(self) -> None:
         super().__init__()
@@ -52,17 +52,17 @@ class _Config:
 
         return super().__setattr__(key, value)
 
-    def update_session_tokens(self, response) -> None:
-        self._session_n_prompt_tokens += response['usage']['prompt_tokens']
-        self._session_n_completition_tokens += response['usage'].get('completion_tokens', 0)
+    def update_tokens(self, response) -> None:
+        self._n_prompt_tokens += response['usage']['prompt_tokens']
+        self._n_completition_tokens += response['usage'].get('completion_tokens', 0)
 
     @property
-    def session_dollars_spend(self) -> float:
+    def dollars_spend(self) -> float:
         prompt_money = MODELS_PRICING_DOLLARS_PER_1K_PROMPT_TOKENS[self.model] * (
-            self._session_n_prompt_tokens / 1000
+            self._n_prompt_tokens / 1000
         )
         completition_money = MODELS_PRICING_DOLLARS_PER_1K_COMPLETITION_TOKENS[self.model] * (
-            self._session_n_completition_tokens / 1000
+            self._n_completition_tokens / 1000
         )
         return prompt_money + completition_money
 

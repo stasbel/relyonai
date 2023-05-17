@@ -2,28 +2,24 @@ import logging
 
 import nbformat
 
-from aiknows import prompt, runtime
+from aiknows import prompt as ak_prompt
+from aiknows import runtime as ak_runtime
 
 logger = logging.getLogger(__name__)
 
 
 NBS_ORDER = (
-    'package',
+    'modules',
     'const',
-    'error_fixing',
-    'sum_xy',
-    # 'sum_x',
-    # 'sum_y',
-    'sum',
-    'file_arg',
-    'file_noarg',
-    'file_const',
+    'sums',
+    'files',
     'plt',
     'gpt',
-    'task_error',
-    'task_error_cause',
+    'error_fixing',
+    'task_errors',
     'lambdas',
     'exploration',
+    'reuse',
     # 'template',
 )
 
@@ -45,12 +41,11 @@ class ExampleNotebookParser:
         assert cell.cell_type == 'code'
         code = cell.source.strip()
         self.pos += 1
-        return f'```python\n{code}\n```'
+        return code
 
 
-def collect_messages(chat, nb_path):
+def collect_messages(chat, runtime, nb_path):
     nb_parser = ExampleNotebookParser(nb_path)
-    local_runtime = runtime.LocalRuntime()
 
     active_task = False
     for _ in range(len(nb_parser)):
@@ -58,20 +53,20 @@ def collect_messages(chat, nb_path):
 
         try:
             # don't care about stdout in examples
-            result = local_runtime.run(code, supress_stdout=True)
-        except runtime.SetupTaskSignal as e:
+            result = runtime.run(code, supress_stdout=True)
+        except ak_runtime.SetupTaskSignal as e:
             assert not active_task
             chat.add_user_task(e.task, e.reuse, **e.args)
             if not e.reuse:
-                local_runtime.clear()
-                local_runtime.add_vars(e.args)
+                runtime.clear()
+                runtime.add_vars(e.args)
             active_task = True
             continue
         except Exception as e:
             assert active_task
             chat.add_assistant(code)
 
-            if isinstance(e, (runtime.FinishTaskOKSignal, runtime.FinishTaskErrorSignal)):
+            if isinstance(e, (ak_runtime.FinishTaskOKSignal, ak_runtime.FinishTaskErrorSignal)):
                 active_task = False
                 continue
 
@@ -80,7 +75,6 @@ def collect_messages(chat, nb_path):
             assert active_task
             chat.add_assistant(code)
             chat.add_user_result(result)
-            local_runtime.add_vars({'_': result})
 
     assert not active_task
 
@@ -92,13 +86,11 @@ if __name__ == '__main__':
     # minus template.ipynb
     # assert set(nbs_paths_order) == set(glob.glob('*.ipynb')) - {'template.ipynb'}
 
-    runtime.throw_signals = True
-    chat = prompt.Chat()
+    chat, runtime = ak_prompt.Chat(), ak_runtime.LocalRuntime()
     for nb_path in nbs_paths_order:
-        collect_messages(chat, nb_path)
+        collect_messages(chat, runtime, nb_path)
 
-    for m in chat.messages:
-        logger.info('role: %s message:\n%s', m['role'], m['content'])
+    chat.log_all_messages(logging.INFO)
 
-    chat.save('examples')
+    chat.save('examples/examples.json')
     logger.info('saved to examples.json')
