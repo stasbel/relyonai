@@ -1,4 +1,6 @@
+import glob
 import logging
+import os
 
 import nbformat
 
@@ -9,7 +11,8 @@ logger = logging.getLogger(__name__)
 
 
 NBS_ORDER = (
-    'modules',
+    # 'template',
+    'imports',
     'const',
     'sums',
     'files',
@@ -19,8 +22,7 @@ NBS_ORDER = (
     'task_errors',
     'lambdas',
     'exploration',
-    'reuse',
-    # 'template',
+    'env',
 )
 
 
@@ -44,8 +46,10 @@ class ExampleNotebookParser:
         return code
 
 
-def collect_messages(chat, runtime, nb_path):
+def make_example(runtime, nb_path):
     nb_parser = ExampleNotebookParser(nb_path)
+    name = os.path.splitext(os.path.basename(nb_path))[0]
+    example = ak_prompt.Example(name, add_example_names=False)
 
     active_task = False
     for _ in range(len(nb_parser)):
@@ -56,27 +60,29 @@ def collect_messages(chat, runtime, nb_path):
             result = runtime.run(code, supress_stdout=True)
         except ak_runtime.SetupTaskSignal as e:
             assert not active_task
-            chat.add_user_task(e.task, e.reuse, **e.args)
-            if not e.reuse:
+            example.add_user_task(e.task, e.env, **e.args)
+            if e.env == 'new':
                 runtime.clear()
                 runtime.add_vars(e.args)
             active_task = True
             continue
         except Exception as e:
             assert active_task
-            chat.add_assistant(code)
+            example.add_assistant(code, add_markdown=True)
 
             if isinstance(e, (ak_runtime.FinishTaskOKSignal, ak_runtime.FinishTaskErrorSignal)):
                 active_task = False
                 continue
 
-            chat.add_user_error(e)
+            example.add_user_error(e)
         else:
             assert active_task
-            chat.add_assistant(code)
-            chat.add_user_result(result)
+            example.add_assistant(code, add_markdown=True)
+            example.add_user_result(result)
 
     assert not active_task
+
+    return example
 
 
 if __name__ == '__main__':
@@ -84,13 +90,20 @@ if __name__ == '__main__':
 
     nbs_paths_order = [f'{nb_name}.ipynb' for nb_name in NBS_ORDER]
     # minus template.ipynb
-    # assert set(nbs_paths_order) == set(glob.glob('*.ipynb')) - {'template.ipynb'}
+    assert set(nbs_paths_order) == set(glob.glob('*.ipynb')) - {'template.ipynb'}
 
-    chat, runtime = ak_prompt.Chat(add_example_names=False), ak_runtime.LocalRuntime()
+    system = ak_prompt.Prompt.load_system('gpt4.md')
+    prompt, runtime = ak_prompt.Prompt(system), ak_runtime.LocalRuntime()
     for nb_path in nbs_paths_order:
-        collect_messages(chat, runtime, nb_path)
+        prompt.add_example(make_example(runtime, nb_path))
 
-    chat.log_all_messages(logging.INFO)
+    # a little test
+    test_example = ak_prompt.Example()
+    test_example.add_user_task('import numpy', False)
+    ordered_examples = prompt.fill_up_to_n_tokens(test_example, 2000)
+    assert ordered_examples.examples[-1].name == 'imports'
 
-    chat.save('examples/examples.json')
-    logger.info('saved to examples.json')
+    prompt.log(logging.INFO)
+
+    prompt.save()
+    logger.info('prompt saved to file %s', ak_prompt.DEFAULT_PROMPT_FILE)

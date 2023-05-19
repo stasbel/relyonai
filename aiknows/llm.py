@@ -1,9 +1,10 @@
 import logging
+from typing import List
 
 import joblib
 import openai
 
-from aiknows import config, utils
+from aiknows import config
 
 DEFAULT_TEMPERATURE = 1.0
 
@@ -15,19 +16,11 @@ memory = joblib.Memory(config.cache_path, verbose=0)
 
 @memory.cache
 def generate_or_retrieve_code(prompt_messages):
+    logger.info('cache miss on generating code')
     if config.dollars_spent > config.dollars_limit:
         raise ValueError('dollars limit exceeded')
 
-    logger.info('cache miss, generating bytecode')
     logger.info(f'len prompt messages: {len(prompt_messages)}')
-
-    if utils.package_exists('tiktoken'):
-        import tiktoken
-
-        tokenizer = tiktoken.encoding_for_model(config.model)
-        prompt_token_len = len(tokenizer.encode('\n'.join(m['content'] for m in prompt_messages)))
-        logger.info(f'estimate prompt token length: {prompt_token_len}')
-
     response = openai.ChatCompletion.create(
         model=config.model,
         messages=prompt_messages,
@@ -44,6 +37,7 @@ def generate_or_retrieve_code(prompt_messages):
 
 @memory.cache
 def gpt(prompt: str, *, t: float = DEFAULT_TEMPERATURE) -> str:
+    logger.info('cache miss on gpt')
     if config.dollars_spent > config.dollars_limit:
         raise ValueError('dollars limit exceeded')
 
@@ -63,3 +57,23 @@ async def agpt(prompt: str, *, t: float = DEFAULT_TEMPERATURE) -> str:
     del prompt
     del t
     raise NotImplementedError('although it\'s very simple')
+
+
+@memory.cache
+def emb(text: str) -> List[float]:
+    logger.info('cache miss on emb')
+    if config.dollars_spent > config.dollars_limit:
+        raise ValueError('dollars limit exceeded')
+
+    # https://github.com/openai/openai-python/blob/da828789387755c964c8816d1198d9a61df85b2e/openai/embeddings_utils.py#L20
+    text = text.replace('\n', ' ')
+
+    response = openai.Embedding.create(
+        model=config.embedding_model,
+        input=text,
+    )
+    config.update_embedding_tokens(response)
+
+    emb = response['data'][0]['embedding']
+
+    return emb

@@ -10,7 +10,8 @@ version = "0.1.0"
 # version parser expected this to be of form ">={python_version}"
 requires-python = ">=3.8"
 dependencies = [
-    "openai==0.27.6",
+    "openai[embeddings]==0.27.6",
+    "tiktoken==0.4.0",
     "joblib==1.2.0",
 ]
 

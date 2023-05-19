@@ -1,6 +1,6 @@
 import ast
 import contextlib
-from typing import Any, Callable, Dict, Optional
+from typing import Any, Callable, Dict, Optional, Union
 
 from aiknows import gpt
 from aiknows import prompt as ak_prompt
@@ -13,11 +13,11 @@ class ControlFlowSignal(Exception):
 class SetupTaskSignal(ControlFlowSignal):
     """Exception raised by assistant when task is begining."""
 
-    def __init__(self, task: str, reuse: bool, args: Dict[str, Any]) -> None:
+    def __init__(self, task: str, env: str, args: Dict[str, Any]) -> None:
         super().__init__()
 
         self.task = task
-        self.reuse = reuse
+        self.env = env
         self._args = args
 
     @property
@@ -25,10 +25,10 @@ class SetupTaskSignal(ControlFlowSignal):
         return self._args
 
     def __repr__(self) -> str:
-        return '{class_name}(task={task}, reuse={reuse}, args={args})'.format(
+        return '{class_name}(task={task}, env={env}, args={args})'.format(
             class_name=self.__class__.__name__,
             task=repr(self.task),
-            reuse=repr(self.reuse),
+            env=repr(self.env),
             args=repr(self.args),
         )
 
@@ -53,7 +53,7 @@ class FinishTaskOKSignal(ControlFlowSignal):
 class FinishTaskErrorSignal(ControlFlowSignal):
     """Exception raised by assistant when task can't be complete."""
 
-    def __init__(self, message: str, error_cause: bool = False) -> None:
+    def __init__(self, message: str, error_cause: Union[bool, Exception] = False) -> None:
         super().__init__()
 
         self.message = message
@@ -85,8 +85,8 @@ def enable_signals() -> None:
 def setup_task(
     *,
     task: str,
-    reuse: bool,
-    args: Optional[Dict[str, Any]],
+    env: bool = 'new',
+    args: Optional[Dict[str, Any]] = None,
     globals: Dict[str, Any],
     validator: Optional[Callable[[Any], bool]] = None,
 ) -> None:
@@ -101,17 +101,14 @@ def setup_task(
 
     """
 
-    # new args can shadow common, but rn we don't allow this
-    args = args or {}
-    assert len(set(LocalRuntime.RESERVED_GLOBALS.keys()) & set(args.keys())) == 0
-
     # print assistant's prompt (user/task)
-    chat = ak_prompt.Chat()
-    chat.add_user_task(task, reuse, **args)
-    chat.log_last_message(stdout=True)
+    example = ak_prompt.Example()
+    args = args or {}
+    example.add_user_task(task, env, **args)
+    example.log(stdout=True)
 
     # construct context
-    if not reuse:
+    if env == 'new':
         # when we executing inside jupyter this is unset
         # because we can't clear globals in jupyter -- this would break stuff
         if _can_throw_signals:
@@ -127,7 +124,7 @@ def setup_task(
 
     # only raise exception in real runtime
     if _can_throw_signals:
-        raise SetupTaskSignal(task, reuse, args)
+        raise SetupTaskSignal(task, env, args)
 
 
 def finish_task_ok(result: Any, message: Optional[str] = None) -> None:
@@ -138,7 +135,7 @@ def finish_task_ok(result: Any, message: Optional[str] = None) -> None:
         raise FinishTaskOKSignal(result, message)
 
 
-def finish_task_error(message: str, error_cause: bool = False) -> None:
+def finish_task_error(message: str, error_cause: Union[bool, Exception] = False) -> None:
     if _can_throw_signals:
         raise FinishTaskErrorSignal(message, error_cause)
 

@@ -10,33 +10,52 @@ logger = logging.getLogger(__name__)
 
 
 class Session:
-    def __init__(self, chat, runtime) -> None:
+    def __init__(self, prompt, runtime) -> None:
         super().__init__()
 
-        self.chat = chat
+        self.prompt = prompt
         self.runtime = runtime
-        self.reuse = False
+        self.env = 'new'
 
     def ai(self, task: str, **kwargs) -> Any:
-        self.chat.add_user_task(task, self.reuse, **kwargs)
-        self.chat.log_last_message(logging.INFO)
-        self.reuse = True  # enabling same runtime afterwards
+        task_example = ak_prompt.Example(task)
+        task_example.add_user_task(task, self.env, **kwargs)
+        task_example.log_last(logging.INFO, post_nl=True)
 
-        result, last_error, history_len = None, None, 0
+        if self.env == 'new':
+            self.runtime.clear()
+            self.runtime.add_vars(kwargs)
+            self.env = 'same'  # enabling same runtime afterwards
+
+        # what are possible reasons of cycle end?
+        # controllabel
+        # - history limit => raise `FinishTaskErrorSignal` ❌
+        # - finish task ok => return result ✅
+        # - finish task error => raise `FinishTaskErrorSignal` ❌
+        # uncontrollable
+        # - ak_llm (openai) error => raise error ❌
+        # - any other error => raise error ❌
+
+        result, last_error, history_len, is_finished_ok = None, None, 0, False
         while True:
-            code = ak_llm.generate_or_retrieve_code(self.chat.messages)
+            relevant_prompt = self.prompt.fill_up_to_n_tokens(
+                example=task_example,
+                n_tokens=config.n_tokens_relevant_prompt,
+            )
+            relevant_prompt.add_example(task_example)
+
+            code = ak_llm.generate_or_retrieve_code(relevant_prompt.messages)
 
             try:
-                # chat is common to not follow rules all the time
-                code = self.chat.strip_code_markdown(code)
-
-                result = self.runtime.run(code)
+                clean_code = task_example.strip_code_markdown(code)  # could raise error
+                result = self.runtime.run(clean_code)
             except Exception as e:
-                self.chat.add_assistant(code)
-                self.chat.log_last_message(logging.INFO)
+                task_example.add_assistant(code)  # put original code (w/ errors)
+                task_example.log_last(logging.INFO, post_nl=True)
 
                 if isinstance(e, ak_runtime.FinishTaskOKSignal):
                     result = e.result
+                    is_finished_ok = True
                     break
 
                 if isinstance(e, ak_runtime.FinishTaskErrorSignal):
@@ -45,32 +64,40 @@ class Session:
                     else:
                         raise e
 
-                self.chat.add_user_error(e)
-                self.chat.log_last_message(logging.INFO)
+                # no signal => real execution error
+                task_example.add_user_error(e)
+                task_example.log_last(logging.INFO, post_nl=True)
                 last_error = e
             else:
-                self.chat.add_assistant(code)
-                self.chat.log_last_message(logging.INFO)
-                self.chat.add_user_result(result)
-                self.chat.log_last_message(logging.INFO)
+                task_example.add_assistant(code)
+                task_example.log_last(logging.INFO, post_nl=True)
+                task_example.add_user_result(result)
+                task_example.log_last(logging.INFO, post_nl=True)
 
             history_len += 1
             if history_len == config.history_len_max:
                 break
 
+        self.prompt.add_example(task_example)
+
+        if not is_finished_ok:  # the only option is meeting history limit
+            raise ak_runtime.FinishTaskErrorSignal(
+                'encounting history limit of %d' % config.history_len_max
+            )
+
+        # finish task ok
         return result
 
 
 def ai(task: str, *, save_session: bool = False, **kwargs) -> Any:
-    chat = ak_prompt.Chat()
-    chat.load_system()
-    chat.load_examples()
-    # chat.log_all_messages(stdout=True)
+    prompt = ak_prompt.Prompt.load()
+    # prompt.log(logging.INFO)
+    # prompt.log(stdout=True)
 
     runtime = ak_runtime.LocalRuntime()
     runtime.add_vars(kwargs)
 
-    session = Session(chat, runtime)
+    session = Session(prompt, runtime)
 
     result = session.ai(task, **kwargs)
 
