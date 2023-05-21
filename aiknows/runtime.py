@@ -1,9 +1,9 @@
 import ast
 import contextlib
+import traceback
 from typing import Any, Callable, Dict, Optional, Union
 
 from aiknows import gpt
-from aiknows import prompt as ak_prompt
 
 
 class ControlFlowSignal(Exception):
@@ -69,6 +69,7 @@ class FinishTaskErrorSignal(ControlFlowSignal):
 
 _can_throw_signals = False
 _last_validator = None
+_last_result = None
 
 
 @contextlib.contextmanager
@@ -102,9 +103,11 @@ def setup_task(
     """
 
     # print assistant's prompt (user/task)
+    from aiknows import prompt as ak_prompt
+
     example = ak_prompt.Example()
     args = args or {}
-    example.add_user_task(task, env, **args)
+    example.add_user_task(task, env, args)
     example.log(stdout=True)
 
     # construct context
@@ -118,6 +121,9 @@ def setup_task(
         clean_runtime.add_vars(args)
         globals.update(clean_runtime.globals)
 
+    if env == 'same':
+        globals.update({'_': _last_result})
+
     # save validator for later finishing
     global _last_validator
     _last_validator = validator
@@ -127,7 +133,10 @@ def setup_task(
         raise SetupTaskSignal(task, env, args)
 
 
-def finish_task_ok(result: Any, message: Optional[str] = None) -> None:
+def finish_task_ok(result: Any = None, message: Optional[str] = None) -> None:
+    global _last_result
+    _last_result = result
+
     if _last_validator is not None:
         assert _last_validator(result)
 
@@ -140,19 +149,37 @@ def finish_task_error(message: str, error_cause: Union[bool, Exception] = False)
         raise FinishTaskErrorSignal(message, error_cause)
 
 
+class RuntimeError(Exception):
+    pass
+
+
+class HistroyLimitError(RuntimeError):
+    pass
+
+
+class ResponseFormatError(RuntimeError):
+    pass
+
+
+class InvalidTaskError(RuntimeError):
+    pass
+
+
 class LocalRuntime:
-    EXEC_FILENAME = '<gpt>'
+    EXEC_BODY_FILENAME = '<assistant>'
+    EXEC_LAST_FILENAME = '<assistant>'
     RESERVED_GLOBALS = {
         'gpt': gpt,
         'finish_task_ok': finish_task_ok,
         'finish_task_error': finish_task_error,
     }
 
-    def __init__(self) -> None:
+    def __init__(self, *, source_file_path=None) -> None:
         super().__init__()
 
-        self.globals = {}
+        self.source_file_path = source_file_path
 
+        self.globals = {}
         self.clear()
 
     def _execute_jupyter_style(self, code):
@@ -163,7 +190,7 @@ class LocalRuntime:
         # * bytecode isn't pickable by joblib (though we can parse ast first)
         # bytecode = compile(code, '<gpt>', 'exec')
 
-        code = code.strip()
+        # code = code.strip()
 
         # Parse the code into an AST
         tree = ast.parse(code)
@@ -178,24 +205,44 @@ class LocalRuntime:
         # Remove the last body element from the original tree
         tree.body = tree.body[:-1]
 
-        exec(compile(tree, filename=self.EXEC_FILENAME, mode='exec'), self.globals)
+        exec(compile(tree, filename=self.EXEC_BODY_FILENAME, mode='exec'), self.globals)
 
         if return_last_expr and isinstance(last, ast.Expr):
             # If the last body element does not end with semicolon, return its value
             last = ast.Expression(last.value)
-            return eval(compile(last, filename=self.EXEC_FILENAME, mode='eval'), self.globals)
+            return eval(compile(last, filename=self.EXEC_LAST_FILENAME, mode='eval'), self.globals)
         else:
             # If the last body element ends with semicolon, do not return its value
             last = ast.Module(body=[last], type_ignores=[])
-            exec(compile(last, filename=self.EXEC_FILENAME, mode='exec'), self.globals)
+            exec(compile(last, filename=self.EXEC_LAST_FILENAME, mode='exec'), self.globals)
             return None
+
+    @staticmethod
+    def error_repr(error, *, at_parsing=False, at_runtime=False, code=None):
+        result = []
+
+        if at_parsing:
+            pass
+
+        if at_runtime:
+            last_tb = traceback.extract_tb(error.__traceback__)[-1]
+            last_frame_repr = ''.join(traceback.format_list([last_tb])).strip()
+            result.append(last_frame_repr)
+
+            source_code_repr = '  ' + code.split('\n')[last_tb.lineno - 1].strip()
+            result.append(source_code_repr)
+
+        traceback_repr = ''.join(traceback.format_exception_only(type(error), error)).strip()
+        result.append(traceback_repr)
+
+        return '\n'.join(result)
 
     def run(self, code: str, *, supress_stdout: bool = False) -> Any:
         with contextlib.redirect_stdout(None) if supress_stdout else contextlib.nullcontext():
             with enable_signals():
                 result = self._execute_jupyter_style(code)
 
-        self.globals['_'] = result
+        self.add_vars({'_': result})
         return result
 
     def add_vars(self, args: Dict[str, Any]) -> None:
@@ -203,4 +250,6 @@ class LocalRuntime:
 
     def clear(self) -> None:
         self.globals.clear()
+        if self.source_file_path is not None:
+            self.add_vars({'__file__': self.source_file_path})
         self.add_vars(self.RESERVED_GLOBALS)

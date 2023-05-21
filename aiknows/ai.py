@@ -5,6 +5,7 @@ from aiknows import config
 from aiknows import llm as ak_llm
 from aiknows import prompt as ak_prompt
 from aiknows import runtime as ak_runtime
+from aiknows import utils as ak_utils
 
 logger = logging.getLogger(__name__)
 
@@ -16,10 +17,11 @@ class Session:
         self.prompt = prompt
         self.runtime = runtime
         self.env = 'new'
+        self.examples = []
 
     def ai(self, task: str, **kwargs) -> Any:
-        task_example = ak_prompt.Example(task)
-        task_example.add_user_task(task, self.env, **kwargs)
+        task_example = ak_prompt.Example(task[:10] + '...')
+        task_example.add_user_task(task, self.env, kwargs)
         task_example.log_last(logging.INFO, post_nl=True)
 
         if self.env == 'new':
@@ -28,12 +30,13 @@ class Session:
             self.env = 'same'  # enabling same runtime afterwards
 
         # what are possible reasons of cycle end?
-        # controllabel
-        # - history limit => raise `FinishTaskErrorSignal` ❌
+        # controllable
         # - finish task ok => return result ✅
-        # - finish task error => raise `FinishTaskErrorSignal` ❌
+        # - finish task error => raise `ak_runtime.InvalidTaskError` ❌
+        # - history limit => raise `ak_runtime.HistroyLimitError` ❌
         # uncontrollable
         # - ak_llm (openai) error => raise error ❌
+        # - strip_code_markdown error => raise error ❌
         # - any other error => raise error ❌
 
         result, last_error, history_len, is_finished_ok = None, None, 0, False
@@ -42,35 +45,47 @@ class Session:
                 example=task_example,
                 n_tokens=config.n_tokens_relevant_prompt,
             )
-            relevant_prompt.add_example(task_example)
+            relevant_prompt.examples.extend(self.examples)
+            relevant_prompt.examples.append(task_example)
 
-            code = ak_llm.generate_or_retrieve_code(relevant_prompt.messages)
+            response = ak_llm.generate_or_retrieve_code(relevant_prompt.messages)
+            task_example.add_assistant(response)
+            task_example.log_last(logging.INFO, post_nl=True)
 
             try:
-                clean_code = task_example.strip_code_markdown(code)  # could raise error
-                result = self.runtime.run(clean_code)
+                code = task_example.strip_code_markdown(response)  # could raise error
+                result = self.runtime.run(code)
             except Exception as e:
-                task_example.add_assistant(code)  # put original code (w/ errors)
-                task_example.log_last(logging.INFO, post_nl=True)
-
                 if isinstance(e, ak_runtime.FinishTaskOKSignal):
+                    self.runtime.add_vars({'_': e.result})
                     result = e.result
                     is_finished_ok = True
                     break
 
                 if isinstance(e, ak_runtime.FinishTaskErrorSignal):
+                    finish_e = ak_runtime.InvalidTaskError(e.message)
                     if e.error_cause:
-                        raise e from last_error
+                        raise finish_e from last_error
                     else:
-                        raise e
+                        raise finish_e
 
-                # no signal => real execution error
-                task_example.add_user_error(e)
+                # response format is incorrect
+                if isinstance(e, ak_runtime.ResponseFormatError):
+                    task_example.add_user_error(e)
+                    task_example.log_last(logging.INFO, post_nl=True)
+                    continue
+
+                # python code is invalid
+                if isinstance(e, SyntaxError):
+                    task_example.add_user_error(e, at_parsing=True, code=code)
+                    task_example.log_last(logging.INFO, post_nl=True)
+                    continue
+
+                # real execution error
+                task_example.add_user_error(e, at_runtime=True, code=code)
                 task_example.log_last(logging.INFO, post_nl=True)
                 last_error = e
             else:
-                task_example.add_assistant(code)
-                task_example.log_last(logging.INFO, post_nl=True)
                 task_example.add_user_result(result)
                 task_example.log_last(logging.INFO, post_nl=True)
 
@@ -78,12 +93,11 @@ class Session:
             if history_len == config.history_len_max:
                 break
 
-        self.prompt.add_example(task_example)
+        # self.prompt.add_example(task_example)
+        self.examples.append(task_example)
 
         if not is_finished_ok:  # the only option is meeting history limit
-            raise ak_runtime.FinishTaskErrorSignal(
-                'encounting history limit of %d' % config.history_len_max
-            )
+            raise ak_runtime.HistroyLimitError('limit of %d reached' % config.history_len_max)
 
         # finish task ok
         return result
@@ -94,7 +108,10 @@ def ai(task: str, *, save_session: bool = False, **kwargs) -> Any:
     # prompt.log(logging.INFO)
     # prompt.log(stdout=True)
 
-    runtime = ak_runtime.LocalRuntime()
+    source_file_path = None
+    if not ak_utils.is_inside_jupyter():
+        source_file_path = ak_utils.get_above_caller_file_path()
+    runtime = ak_runtime.LocalRuntime(source_file_path=source_file_path)
     runtime.add_vars(kwargs)
 
     session = Session(prompt, runtime)

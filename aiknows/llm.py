@@ -3,6 +3,7 @@ from typing import List
 
 import joblib
 import openai
+import tenacity
 
 from aiknows import config
 
@@ -15,6 +16,10 @@ memory = joblib.Memory(config.cache_path, verbose=0)
 
 
 @memory.cache
+@tenacity.retry(
+    wait=tenacity.wait_random_exponential(min=1, max=20),
+    stop=tenacity.stop_after_attempt(config.n_retries),
+)
 def generate_or_retrieve_code(prompt_messages):
     logger.info('cache miss on generating code')
     if config.dollars_spent > config.dollars_limit:
@@ -36,6 +41,10 @@ def generate_or_retrieve_code(prompt_messages):
 
 
 @memory.cache
+@tenacity.retry(
+    wait=tenacity.wait_random_exponential(min=1, max=20),
+    stop=tenacity.stop_after_attempt(config.n_retries),
+)
 def gpt(prompt: str, *, t: float = DEFAULT_TEMPERATURE) -> str:
     logger.info('cache miss on gpt')
     if config.dollars_spent > config.dollars_limit:
@@ -53,6 +62,10 @@ def gpt(prompt: str, *, t: float = DEFAULT_TEMPERATURE) -> str:
 
 
 @memory.cache
+@tenacity.retry(
+    wait=tenacity.wait_random_exponential(min=1, max=20),
+    stop=tenacity.stop_after_attempt(config.n_retries),
+)
 async def agpt(prompt: str, *, t: float = DEFAULT_TEMPERATURE) -> str:
     del prompt
     del t
@@ -60,6 +73,10 @@ async def agpt(prompt: str, *, t: float = DEFAULT_TEMPERATURE) -> str:
 
 
 @memory.cache
+@tenacity.retry(
+    wait=tenacity.wait_random_exponential(min=1, max=20),
+    stop=tenacity.stop_after_attempt(config.n_retries),
+)
 def emb(text: str) -> List[float]:
     logger.info('cache miss on emb')
     if config.dollars_spent > config.dollars_limit:

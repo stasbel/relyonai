@@ -1,1 +1,1 @@
-other content
+other.txt content

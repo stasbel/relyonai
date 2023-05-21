@@ -37,6 +37,7 @@ class _Config:
     history_len_max: int = 5
     cache_path: str = CACHE_PATH
     dollars_limit: float = 1.0
+    n_retries: int = 3
 
     # more like a common private var
     _n_prompt_tokens: int = 0

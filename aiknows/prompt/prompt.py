@@ -1,13 +1,14 @@
 import json
 import logging
 import os
-import traceback
+import re
 
 import tiktoken
 
 from aiknows import config
 from aiknows import explain as ak_explain
 from aiknows import llm as ak_llm
+from aiknows import runtime as ak_runtime
 from aiknows import utils as ak_utils
 
 logger = logging.getLogger(__name__)
@@ -21,22 +22,13 @@ DEFAULT_PROMPT_FILE = 'prompt.json'
 class Example:
     # refer to NEW_SCHEMA.md for the format
 
-    def __init__(self, name=None, *, add_example_names=False, data=None):
+    def __init__(self, name=None, *, add_example_names=False, messages=None, tasks=None):
         super().__init__()
 
         self.name = name
         self.add_example_names = add_example_names
-        self.data = data or []
-
-    @property
-    def messages(self):
-        result = []
-        for data in self.data:
-            data = data.copy()
-            data.pop('task', None)
-            result.append(data)
-
-        return result
+        self.messages = messages or []
+        self.tasks = tasks or []
 
     @property
     def n_tokens(self):
@@ -47,25 +39,26 @@ class Example:
     @property
     def emb(self):
         # return ak_llm.emb(repr(self))
-        tasks_repr = '\n'.join(data['task'] for data in self.data if 'task' in data)
+        # embedding model is confused by all this markdown
+        tasks_repr = '\n'.join(self.tasks)
         return ak_llm.emb(tasks_repr)
 
     MESSAGE_SCHEMA = '==={role}{name}===\n\n{content}'
 
-    def data_repr(self, data):
-        name_repr = f' {data["name"]}' if 'name' in data else ''
+    def message_repr(self, message):
+        name_repr = f' {message["name"]}' if 'name' in message else ''
         return self.MESSAGE_SCHEMA.format(
-            role=data['role'],
+            role=message['role'],
             name=name_repr,
-            content=data['content'],
+            content=message['content'],
         )
 
     def __repr__(self) -> str:
-        data_reprs = []
-        for data in self.data:
-            data_reprs.append(self.data_repr(data))
+        message_reprs = []
+        for message in self.messages:
+            message_reprs.append(self.message_repr(message))
 
-        return '\n\n'.join(data_reprs)
+        return '\n\n'.join(message_reprs)
 
     def construct_message(self, role, content):
         if self.add_example_names:
@@ -81,30 +74,52 @@ class Example:
                 'content': content,
             }
 
-    USER_TASK_SCHEMA = 'TASK: """\n{task}\n"""\nENV: {env}\nARGS: {args}'
+    USER_TASK_SCHEMA = (
+        'task description: """\n{task}\n"""\nenvironment: {env}\nglobal variables: {args}'
+    )
 
-    def add_user_task(self, task, env, **kwargs):
+    def add_user_task(self, task, env, args):
         # env_repr = f'\'{env}\''
-        env_repr = env
-        args_repr = []
-        for k, v in kwargs.items():
-            v_explanation = ak_explain.explain(v)
-            if len(v_explanation) > config.n_truncate_repr:
-                logger.warning('truncating explanation to %d chars', config.n_truncate_repr)
-                v_explanation = v_explanation[: config.n_truncate_repr] + '...[truncated]'
+        # env_repr = env
+        # args_repr = []
+        # for k, v in kwargs.items():
+        #     v_explanation = ak_explain.explain(v)
+        #     if len(v_explanation) > config.n_truncate_repr:
+        #         logger.warning('truncating explanation to %d chars', config.n_truncate_repr)
+        #         v_explanation = v_explanation[: config.n_truncate_repr] + '...[truncated]'
 
-            args_repr.append(f'- {k}: """\n{v_explanation}\n"""')
+        #     args_repr.append(f'- {k}: """\n{v_explanation}\n"""')
+        # if len(args_repr) > 0:
+        #     args_repr = '\n' + '\n'.join(args_repr)
+        # else:
+        #     args_repr = '<empty>'
+        if env == 'new':
+            env_repr = 'new python interpreter'
+        elif env == 'same':
+            env_repr = 'reused from previous task'
+        else:
+            raise ValueError(f'invalid env: {env}')
+
+        args_repr = []
+        for k, v in args.items():
+            v_explanation = ak_explain.explain(v)
+            # args_repr.append(f'- {k} ({v_explanation["type"]})')
+            # v_explanation.pop('type')
+            args_repr.append(f'- {k}')
+            # v_explanation.pop('type')
+            for k2, v2 in v_explanation.items():
+                args_repr.append(f'    - {k2}: {v2}')
         if len(args_repr) > 0:
             args_repr = '\n' + '\n'.join(args_repr)
         else:
             args_repr = '<empty>'
 
+        # content = self.USER_TASK_SCHEMA.format(task=task, env=env_repr, args=args_repr).strip()
         content = self.USER_TASK_SCHEMA.format(task=task, env=env_repr, args=args_repr).strip()
-        message = self.construct_message('user', content)
-        message['task'] = task
-        self.data.append(message)
+        self.messages.append(self.construct_message('user', content))
+        self.tasks.append(task)
 
-    USER_RESULT_SCHEMA = 'RESULT: """\n{result}\n"""'
+    USER_RESULT_SCHEMA = 'result: """\n{result}\n"""'
 
     def add_user_result(self, result):
         result_repr = repr(result)
@@ -113,48 +128,67 @@ class Example:
             result_repr = result_repr[: config.n_truncate_repr] + '...[truncated]'
 
         content = self.USER_RESULT_SCHEMA.format(result=result_repr).strip()
-        self.data.append(self.construct_message('user', content))
+        self.messages.append(self.construct_message('user', content))
 
-    USER_ERROR_SCHEMA = 'ERROR: """\n{error}\n"""'
+    USER_ERROR_SCHEMA = 'error: """\n{error}\n"""'
+    HINT_SCHEMA = 'hint: """\n{hint}\n"""'
 
-    def add_user_error(self, error):
-        # tb = traceback.extract_tb(error.__traceback__)
-        # last_frame_repr = ''.join(traceback.format_list([tb[-1]])).strip()
-        traceback_repr = ''.join(traceback.format_exception_only(type(error), error)).strip()
-        # error_repr = f'{last_frame_repr}\n{traceback_repr}'
-        error_repr = f'{traceback_repr}'
+    def add_user_error(self, error, *, at_parsing=False, at_runtime=False, code=None):
+        error_repr = ak_runtime.LocalRuntime.error_repr(
+            error=error,
+            at_parsing=at_parsing,
+            at_runtime=at_runtime,
+            code=code,
+        )
+        error_repr = self.USER_ERROR_SCHEMA.format(error=error_repr).strip()
+
+        if isinstance(error, ModuleNotFoundError):
+            hint_repr = 'try to use python standard library and installed pip packages'
+            hint_repr += '\napproach problem differently'
+            hint_repr += '\ndo no attempt installing packages'
+            error_repr += f'\n{self.HINT_SCHEMA.format(hint=hint_repr)}'
+            error_repr = error_repr.strip()
 
         if len(error_repr) > config.n_truncate_repr:
             logger.warning('truncating error repr to %d chars', config.n_truncate_repr)
             error_repr = error_repr[: config.n_truncate_repr] + '...[truncated]'
 
-        content = self.USER_ERROR_SCHEMA.format(error=error_repr).strip()
-        self.data.append(self.construct_message('user', content))
+        content = error_repr
+        self.messages.append(self.construct_message('user', content))
 
     @staticmethod
     def add_code_markdown(code):
         return f'```python\n{code}\n```'
 
     @staticmethod
-    def strip_code_markdown(code):
-        code = code.split('\n')
-        if code[0] != '```python' or code[-1] != '```':
-            raise ValueError(
-                'assistance response code is of invalid format:'
-                ' double check that the code is wrapped in ```python ... ```'
+    def strip_code_markdown(response):
+        # code = code.split('\n')
+        # if code[0] != '```python' or code[-1] != '```':
+        #     raise ValueError(
+        #         'assistance response code is of invalid format:'
+        #         ' double check that the code is wrapped in ```python ... ```'
+        #     )
+        # code = '\n'.join(code[1:-1]).strip()
+        # return code
+        pattern = r'```python\n((?:.*\n)*?)```'
+        match = re.search(pattern, response, re.MULTILINE)
+        if not match:
+            # raise ak_runtime.ResponseFormatError('assistant response code block is invalid')
+            raise ak_runtime.ResponseFormatError(
+                'make sure to wrap code in markdown: ```python{code}```'
             )
-        code = '\n'.join(code[1:-1]).strip()
-        return code
+
+        return match.group(1).strip()
 
     def add_assistant(self, code, add_markdown=False):
         if add_markdown:
             code = self.add_code_markdown(code)
 
-        self.data.append(self.construct_message('assistant', code))
+        self.messages.append(self.construct_message('assistant', code))
 
-    def log(self, level=None, *, stdout=False):
+    def log(self, level=None, *, stdout=False, post_nl=False):
         assert level is not None or stdout
-        full_repr = repr(self)
+        full_repr = repr(self) + '\n' * int(post_nl)
         if stdout:
             print(full_repr)
         else:
@@ -162,7 +196,7 @@ class Example:
 
     def log_last(self, level=None, *, stdout=False, post_nl=False):
         assert level is not None or stdout
-        full_repr = self.data_repr(self.data[-1]) + '\n' * int(post_nl)
+        full_repr = self.message_repr(self.messages[-1]) + '\n' * int(post_nl)
         if stdout:
             print(full_repr)
         else:
@@ -182,15 +216,18 @@ class Prompt:
 
         self.examples = examples or []
 
-    def add_example(self, example):
-        self.examples.append(example)
-
     @classmethod
     def load_system(cls, file=DEFAULT_SYSTEM_FILE):
         with open(os.path.join(SYSTEM_DIR, file)) as f:
-            content = f.read().format(python_version=config.python_version)
+            content = f.read()
 
-        return Example(cls.SYSTEM_NAME, data=[{'role': 'system', 'content': content}])
+        # adding python version
+        content = content.format(
+            python_version=config.python_version,
+            python_interpreter=ak_utils.python_intepreter_repr(),
+        )
+
+        return Example(cls.SYSTEM_NAME, messages=[{'role': 'system', 'content': content}])
 
     @property
     def messages(self):
@@ -220,7 +257,7 @@ class Prompt:
         )
 
         examples = []
-        while k_tokens > 0:
+        while len(ordered_examples) and k_tokens > 0:
             example = ordered_examples.pop()
 
             if example.n_tokens > k_tokens:
@@ -233,18 +270,19 @@ class Prompt:
         examples = list(reversed(examples))
 
         result = Prompt(system=self.system, examples=examples)
-        assert result.n_tokens <= n_tokens
+        assert len(ordered_examples) == 0 or result.n_tokens <= n_tokens
 
         return result
 
     def save(self, path=DEFAULT_PROMPT_FILE):
         data = {
-            'system': self.system.data,
+            'system': self.system.messages,
             'examples': [
                 {
                     'name': example.name,
                     'add_example_names': example.add_example_names,
-                    'data': example.data,
+                    'messages': example.messages,
+                    'tasks': example.tasks,
                 }
                 for example in self.examples
             ],
@@ -258,25 +296,26 @@ class Prompt:
         with open(os.path.join(CURRENT_DIR, path), 'r') as f:
             data = json.load(f)
 
-        system = Example(cls.SYSTEM_NAME, data=data['system'])
+        system = Example(cls.SYSTEM_NAME, messages=data['system'])
         examples = []
         for example_data in data['examples']:
             example = Example(
                 name=example_data['name'],
                 add_example_names=example_data['add_example_names'],
-                data=example_data['data'],
+                messages=example_data['messages'],
+                tasks=example_data['tasks'],
             )
             examples.append(example)
 
         return cls(system=system, examples=examples)
 
-    def log(self, level=None, *, stdout=False):
+    def log(self, level=None, *, stdout=False, post_nl=False):
         assert level is not None or stdout
         examples_reprs = [repr(self.system)]
         for example in self.examples:
             examples_reprs.append(repr(example))
 
-        full_repr = '\n\n'.join(examples_reprs)
+        full_repr = '\n\n'.join(examples_reprs) + '\n' * int(post_nl)
         if stdout:
             print(full_repr)
         else:

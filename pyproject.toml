@@ -51,12 +51,15 @@ max-line-length = 99
 
 [tool.pytest.ini_options]
 # with caching, single process is faster
-addopts="-n 4"
+addopts="-n 8"
 
 [tool.tox]
 legacy_tox_ini = """
 [tox]
-env_list = python3{6,7}, py3{8,9,10,11}
+# all envs:
+# env_list = python37, py3{8,9,10,11}
+# most likely envs:
+env_list = python37, py38
 
 [testenv]
 extras = dev

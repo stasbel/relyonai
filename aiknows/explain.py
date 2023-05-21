@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, Dict
 
 from aiknows import utils as ak_utils
 
@@ -11,9 +11,10 @@ def type_repr(x):
         return f'{module}.{class_name}'
 
 
-def explain(x: Any) -> str:
+def explain(x: Any) -> Dict[str, str]:
     # TODO: x could be package or path or ... anything
-    result = [f'type: {type_repr(x)}']
+    # result = [f'type: {type_repr(x)}']
+    result = {'type': type_repr(x)}
 
     if ak_utils.package_exists('numpy'):
         import numpy as np
@@ -25,7 +26,9 @@ def explain(x: Any) -> str:
             # result.append(buf.getvalue())
 
             # simpler version
-            result.append(f'shape: {x.shape}\ndtype: {x.dtype}')
+            # result.append(f'shape: {x.shape}\ndtype: {x.dtype}')
+            result['shape'] = str(x.shape)
+            result['dtype'] = str(x.dtype)
 
     if ak_utils.package_exists('pandas'):
         import pandas as pd  # # pyright: ignore
@@ -38,13 +41,16 @@ def explain(x: Any) -> str:
             # result.extend(info)
 
             # simpler version
-            result.append(
-                f'shape: {x.shape}\n'
-                f'columns: {x.columns.to_list()}\n'
-                f'dtypes: {[t.name for t in x.dtypes.to_list()]}'
-            )
+            # result.append(
+            #     f'shape: {x.shape}\n'
+            #     f'columns: {x.columns.to_list()}\n'
+            #     f'dtypes: {[t.name for t in x.dtypes.to_list()]}'
+            # )
+            result['shape'] = str(x.shape)
+            result['columns'] = str(x.columns.to_list())
+            result['dtypes'] = str([t.name for t in x.dtypes.to_list()])
 
     # merge lines
-    result = '\n'.join(result).strip()
+    # result = '\n'.join(result).strip()
 
     return result
