@@ -1,6 +1,8 @@
+import importlib
 import logging
 import os
 import shutil
+import subprocess
 import sys
 from dataclasses import dataclass
 from typing import Any
@@ -25,8 +27,9 @@ EMBEDDING_MODELS_PRICING_DOLLARS_PER_1K_TOKENS = {
     'text-embedding-ada-002': 0.0004,
 }
 
-# cache is stored in main package directory
-CACHE_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), '.aiknows.cache'))
+# cache is stored in ~~main package~~ home directory
+# CACHE_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), '.aiknows.cache'))
+CACHE_PATH = os.path.expanduser('~/.cache/aiknows')
 
 
 @dataclass
@@ -39,7 +42,6 @@ class _Config:
     history_len_max: int = 5
     cache_path: str = CACHE_PATH
     dollars_limit: float = 1.0
-    n_retries: int = 3
 
     # more like a common private var
     _n_prompt_tokens: int = 0
@@ -61,14 +63,20 @@ class _Config:
                     f'must be one of {AVAILABLE_EMBEDDING_MODELS}'
                 )
 
+        if key == 'cache_path':
+            from aiknows import llm as ak_llm
+
+            importlib.reload(ak_llm)
+
         return super().__setattr__(key, value)
 
     def clear_cache(self) -> None:
         if os.path.exists(self.cache_path) and os.path.isdir(self.cache_path):
             shutil.rmtree(self.cache_path)
 
-    def cache_size(self) -> str:
-        return str(round(shutil.disk_usage(self.cache_path).used / 1024 / 1024, 2)) + 'MB'
+    def cache_size_mb(self) -> float:
+        result = subprocess.run(['du', '-sh', self.cache_path], capture_output=True, text=True)
+        return float(result.stdout.split('\t')[0][:-1])
 
     def update_tokens(self, response) -> None:
         self._n_prompt_tokens += response['usage'].get('prompt_tokens', 0)

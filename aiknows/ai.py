@@ -40,7 +40,7 @@ class Session:
             relevant_prompt.examples.extend(self.examples)
             relevant_prompt.examples.append(task_example)
 
-            response = ak_llm.generate_or_retrieve_code(relevant_prompt.messages)
+            response = ak_llm.codegen_gpt(relevant_prompt.messages)
 
             try:
                 code = task_example.strip_code_markdown(response)

@@ -3,8 +3,6 @@ import contextlib
 import traceback
 from typing import Any, Callable, Dict, Optional, Union
 
-from aiknows import gpt
-
 
 class ControlFlowSignal(Exception):
     pass
@@ -157,6 +155,10 @@ class HistroyLimitError(RuntimeError):
     pass
 
 
+class DollarsLimitError(RuntimeError):
+    pass
+
+
 class ResponseFormatError(RuntimeError):
     pass
 
@@ -168,11 +170,6 @@ class InvalidTaskError(RuntimeError):
 class LocalRuntime:
     EXEC_BODY_FILENAME = '<assistant>'
     EXEC_LAST_FILENAME = '<assistant>'
-    RESERVED_GLOBALS = {
-        'gpt': gpt,
-        'finish_task_ok': finish_task_ok,
-        'finish_task_error': finish_task_error,
-    }
 
     def __init__(self, *, source_file_path=None) -> None:
         super().__init__()
@@ -239,7 +236,7 @@ class LocalRuntime:
             with enable_signals():
                 result = self._execute_jupyter_style(code)
 
-        self.add_vars({'_': result})
+        self.globals.update({'_': result})
         return result
 
     def add_vars(self, args: Dict[str, Any]) -> None:
@@ -247,6 +244,17 @@ class LocalRuntime:
 
     def clear(self) -> None:
         self.globals.clear()
+
+        # reserved globals
+        from aiknows import gpt
+
+        self.globals.update(
+            {
+                'gpt': gpt,
+                'finish_task_ok': finish_task_ok,
+                'finish_task_error': finish_task_error,
+            }
+        )
+
         if self.source_file_path is not None:
             self.add_vars({'__file__': self.source_file_path})
-        self.add_vars(self.RESERVED_GLOBALS)

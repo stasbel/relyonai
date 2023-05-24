@@ -1,11 +1,12 @@
 import logging
-from typing import List
+from typing import Dict, List
 
 import joblib
 import openai
 import tenacity
 
 from aiknows import config
+from aiknows import runtime as ak_runtime
 
 DEFAULT_TEMPERATURE = 1.0
 
@@ -18,35 +19,61 @@ memory = joblib.Memory(config.cache_path, verbose=0)
 @memory.cache
 @tenacity.retry(
     wait=tenacity.wait_random_exponential(min=1, max=20),
-    stop=tenacity.stop_after_attempt(config.n_retries),
+    stop=tenacity.stop_after_attempt(3),
 )
-def generate_or_retrieve_code(prompt_messages):
-    logger.info('cache miss on generating code')
+def _cached_codegen_gpt(model, prompt_messages):
+    logger.info('cache miss on codegen gpt')
     if config.dollars_spent > config.dollars_limit:
-        raise ValueError('dollars limit exceeded')
+        raise ak_runtime.DollarsLimitError(f'{config.dollars_limit}$ limit met')
 
     logger.info(f'len prompt messages: {len(prompt_messages)}')
     response = openai.ChatCompletion.create(
-        model=config.model,
+        model=model,
         messages=prompt_messages,
-        temperature=0.0,  # maximum truth, minimum randomness
-        stop='\n````',  # ends markdown code block, see `prompt.py`
+        temperature=0.0,  # it's code: maximum truth, minimum randomness
+        stop='\n````',  # ends markdown code block w/ 4 ticks, see `prompt.py`
     )
+
     total_tokens = response['usage']['total_tokens']
-    logger.info(f'real prompt token length: {total_tokens}')
+    logger.info(f'codegen token usage: {total_tokens}')
     config.update_tokens(response)
 
-    code = response['choices'][0]['message']['content'].strip()
-    code = code + '\n````'
+    result = response['choices'][0]['message']['content'].strip() + '\n````'
 
-    return code
+    return result
+
+
+def codegen_gpt(prompt_messages: List[Dict[str, str]]) -> str:
+    return _cached_codegen_gpt(config.model, prompt_messages)
 
 
 @memory.cache
 @tenacity.retry(
     wait=tenacity.wait_random_exponential(min=1, max=20),
-    stop=tenacity.stop_after_attempt(config.n_retries),
+    stop=tenacity.stop_after_attempt(3),
 )
+def _cached_gpt(model, prompt, temperature):
+    logger.info('cache miss on gpt')
+    if config.dollars_spent > config.dollars_limit:
+        raise ak_runtime.DollarsLimitError(f'{config.dollars_limit}$ limit met')
+
+    response = openai.ChatCompletion.create(
+        model=model,
+        messages=[
+            {'role': 'user', 'content': prompt},
+        ],
+        temperature=temperature,
+    )
+
+    total_tokens = response['usage']['total_tokens']
+    logger.info(f'gpt token usage: {total_tokens}')
+    config.update_tokens(response)
+
+    result = response['choices'][0]['message']['content'].strip()
+
+    return result
+
+
 def gpt(prompt: str, *, t: float = DEFAULT_TEMPERATURE) -> str:
     """Text completion with GPT model.
 
@@ -61,51 +88,44 @@ def gpt(prompt: str, *, t: float = DEFAULT_TEMPERATURE) -> str:
         str: _description_
     """
 
-    logger.info('cache miss on gpt')
-    if config.dollars_spent > config.dollars_limit:
-        raise ValueError('dollars limit exceeded')
-
-    response = openai.ChatCompletion.create(
-        model=config.model,
-        messages=[
-            {'role': 'user', 'content': prompt},
-        ],
-        temperature=t,
-    )
-    config.update_tokens(response)
-    return response['choices'][0]['message']['content'].strip()
+    return _cached_gpt(config.model, prompt, t)
 
 
 @memory.cache
 @tenacity.retry(
     wait=tenacity.wait_random_exponential(min=1, max=20),
-    stop=tenacity.stop_after_attempt(config.n_retries),
+    stop=tenacity.stop_after_attempt(3),
 )
-async def agpt(prompt: str, *, t: float = DEFAULT_TEMPERATURE) -> str:
-    del prompt
-    del t
-    raise NotImplementedError('although it\'s very simple')
-
-
-@memory.cache
-@tenacity.retry(
-    wait=tenacity.wait_random_exponential(min=1, max=20),
-    stop=tenacity.stop_after_attempt(config.n_retries),
-)
-def emb(text: str) -> List[float]:
+def _cahed_emb(model, text):
     logger.info('cache miss on emb')
     if config.dollars_spent > config.dollars_limit:
-        raise ValueError('dollars limit exceeded')
+        raise ak_runtime.DollarsLimitError(f'{config.dollars_limit}$ limit met')
 
     # https://github.com/openai/openai-python/blob/da828789387755c964c8816d1198d9a61df85b2e/openai/embeddings_utils.py#L20
     text = text.replace('\n', ' ')
 
     response = openai.Embedding.create(
-        model=config.embedding_model,
+        model=model,
         input=text,
     )
-    config.update_embedding_tokens(response)
 
-    emb = response['data'][0]['embedding']
+    total_tokens = response['usage']['total_tokens']
+    logger.info(f'emb token usage: {total_tokens}')
+    config.update_tokens(response)
 
-    return emb
+    result = response['data'][0]['embedding']
+
+    return result
+
+
+def emb(text: str) -> List[float]:
+    """_summary_
+
+    Args:
+        text (str): _description_
+
+    Returns:
+        List[float]: _description_
+    """
+
+    return _cahed_emb(config.embedding_model, text)
