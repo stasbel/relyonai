@@ -30,12 +30,14 @@ def generate_or_retrieve_code(prompt_messages):
         model=config.model,
         messages=prompt_messages,
         temperature=0.0,  # maximum truth, minimum randomness
+        stop='\n````',  # ends markdown code block, see `prompt.py`
     )
     total_tokens = response['usage']['total_tokens']
     logger.info(f'real prompt token length: {total_tokens}')
     config.update_tokens(response)
 
     code = response['choices'][0]['message']['content'].strip()
+    code = code + '\n````'
 
     return code
 
@@ -46,6 +48,19 @@ def generate_or_retrieve_code(prompt_messages):
     stop=tenacity.stop_after_attempt(config.n_retries),
 )
 def gpt(prompt: str, *, t: float = DEFAULT_TEMPERATURE) -> str:
+    """Text completion with GPT model.
+
+    Args:
+        prompt (str): A string to be completed.
+        t (float, optional): Temperature in range [0.0, 2.0]. Defaults to DEFAULT_TEMPERATURE.
+
+    Raises:
+        ValueError: _description_
+
+    Returns:
+        str: _description_
+    """
+
     logger.info('cache miss on gpt')
     if config.dollars_spent > config.dollars_limit:
         raise ValueError('dollars limit exceeded')

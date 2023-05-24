@@ -9,5 +9,5 @@ def test_follow_up():
 
 def test_dataframe(cities_df):
     # someties it's ok, most of the times fail
-    r = ai('return the two most distant cities in df\ndont use geopy', df=cities_df)
+    r = ai('return the two most distant cities names in df\ndon\'t use geopy', df=cities_df)
     assert set(r) == {'West Palm Beach', 'Vancouver'}

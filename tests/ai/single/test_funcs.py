@@ -2,7 +2,7 @@ from aiknows import ai
 
 
 def test_valid_phone_number():
-    check_number = ai('check if input is a valid phone number of format xxx-xxx-xxxx')
+    check_number = ai('input is a valid phone number of format xxx-xxx-xxxx')
     assert check_number('123-456-7890')
     assert not check_number('not a number')
 

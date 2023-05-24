@@ -145,7 +145,7 @@ if __name__ == '__main__':
     ordered_examples = prompt.fill_up_to_n_tokens(test_example, 2000)
     assert ordered_examples.examples[-1].name == 'imports'
 
-    prompt.log(logging.INFO, post_nl=True)
+    prompt.log(logging.INFO)
 
     prompt.save()
     logger.info('prompt saved to file %s', ak_prompt.DEFAULT_PROMPT_FILE)

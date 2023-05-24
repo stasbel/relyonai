@@ -20,24 +20,16 @@ class Session:
         self.examples = []
 
     def ai(self, task: str, **kwargs) -> Any:
+        """refer to :func:`aiknows.ai`"""
+
         task_example = ak_prompt.Example(task[:10] + '...')
         task_example.add_user_task(task, self.env, kwargs)
-        task_example.log_last(logging.INFO, post_nl=True)
+        task_example.log_last(logging.INFO)
 
         if self.env == 'new':
             self.runtime.clear()
             self.runtime.add_vars(kwargs)
             self.env = 'same'  # enabling same runtime afterwards
-
-        # what are possible reasons of cycle end?
-        # controllable
-        # - finish task ok => return result ✅
-        # - finish task error => raise `ak_runtime.InvalidTaskError` ❌
-        # - history limit => raise `ak_runtime.HistroyLimitError` ❌
-        # uncontrollable
-        # - ak_llm (openai) error => raise error ❌
-        # - strip_code_markdown error => raise error ❌
-        # - any other error => raise error ❌
 
         result, last_error, history_len, is_finished_ok = None, None, 0, False
         while True:
@@ -49,51 +41,44 @@ class Session:
             relevant_prompt.examples.append(task_example)
 
             response = ak_llm.generate_or_retrieve_code(relevant_prompt.messages)
-            task_example.add_assistant(response)
-            task_example.log_last(logging.INFO, post_nl=True)
 
             try:
-                code = task_example.strip_code_markdown(response)  # could raise error
+                code = task_example.strip_code_markdown(response)
+            except (SyntaxError, ak_runtime.ResponseFormatError) as e:
+                task_example.add_assistant(response)
+                task_example.log_last(logging.INFO)
+                task_example.add_user_error(e)
+                task_example.log_last(logging.INFO)
+                continue
+
+            task_example.add_assistant(code, add_markdown=True)
+            task_example.log_last(logging.INFO)
+
+            try:
                 result = self.runtime.run(code)
+            except ak_runtime.FinishTaskOKSignal as e:
+                result = e.result
+                self.runtime.add_vars({'_': result})
+                is_finished_ok = True
+                break
+            except ak_runtime.FinishTaskErrorSignal as e:
+                finish_e = ak_runtime.InvalidTaskError(e.message)
+                if e.error_cause:
+                    raise finish_e from last_error
+                else:
+                    raise finish_e
             except Exception as e:
-                if isinstance(e, ak_runtime.FinishTaskOKSignal):
-                    self.runtime.add_vars({'_': e.result})
-                    result = e.result
-                    is_finished_ok = True
-                    break
-
-                if isinstance(e, ak_runtime.FinishTaskErrorSignal):
-                    finish_e = ak_runtime.InvalidTaskError(e.message)
-                    if e.error_cause:
-                        raise finish_e from last_error
-                    else:
-                        raise finish_e
-
-                # response format is incorrect
-                if isinstance(e, ak_runtime.ResponseFormatError):
-                    task_example.add_user_error(e)
-                    task_example.log_last(logging.INFO, post_nl=True)
-                    continue
-
-                # python code is invalid
-                if isinstance(e, SyntaxError):
-                    task_example.add_user_error(e, at_parsing=True, code=code)
-                    task_example.log_last(logging.INFO, post_nl=True)
-                    continue
-
-                # real execution error
                 task_example.add_user_error(e, at_runtime=True, code=code)
-                task_example.log_last(logging.INFO, post_nl=True)
+                task_example.log_last(logging.INFO)
                 last_error = e
-            else:
+            else:  # valid code, no finish signals
                 task_example.add_user_result(result)
-                task_example.log_last(logging.INFO, post_nl=True)
+                task_example.log_last(logging.INFO)
 
             history_len += 1
             if history_len == config.history_len_max:
                 break
 
-        # self.prompt.add_example(task_example)
         self.examples.append(task_example)
 
         if not is_finished_ok:  # the only option is meeting history limit
@@ -104,6 +89,32 @@ class Session:
 
 
 def ai(task: str, *, save_session: bool = False, **kwargs) -> Any:
+    """Generates a python object from a task description and given arguments.
+
+    what are possible reasons of cycle end?
+    controllable
+    - finish task ok => return result ✅
+    - finish task error => raise `ak_runtime.InvalidTaskError` ❌
+    - history limit => raise `ak_runtime.HistroyLimitError` ❌
+    uncontrollable
+    - ak_llm (openai) error => raise error ❌
+    - strip_code_markdown error => raise error ❌
+    - any other error => raise error ❌
+
+    Args:
+        task (str): A task description in natural language.
+        save_session (bool, optional): True if returns session for preservin runtime state.
+          Defaults to False.
+
+    Raises:
+        ak_runtime.InvalidTaskError: when gpt assistant mark the task as invalid
+        ak_runtime.HistroyLimitError: when number of back & forth messages reached
+          `config.history_len_max`
+
+    Returns:
+        Any: python object generated by the assistant's code.
+    """
+
     prompt = ak_prompt.Prompt.load()
     # prompt.log(logging.INFO)
     # prompt.log(stdout=True)

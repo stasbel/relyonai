@@ -43,7 +43,7 @@ class Example:
         tasks_repr = '\n'.join(self.tasks)
         return ak_llm.emb(tasks_repr)
 
-    MESSAGE_SCHEMA = '==={role}{name}===\n\n{content}'
+    MESSAGE_SCHEMA = '==={role}{name}===\n{content}'
 
     def message_repr(self, message):
         name_repr = f' {message["name"]}' if 'name' in message else ''
@@ -58,7 +58,7 @@ class Example:
         for message in self.messages:
             message_reprs.append(self.message_repr(message))
 
-        return '\n\n'.join(message_reprs)
+        return '\n'.join(message_reprs)
 
     def construct_message(self, role, content):
         if self.add_example_names:
@@ -133,15 +133,15 @@ class Example:
     USER_ERROR_SCHEMA = 'error: """\n{error}\n"""'
     HINT_SCHEMA = 'hint: """\n{hint}\n"""'
 
-    def add_user_error(self, error, *, at_parsing=False, at_runtime=False, code=None):
+    def add_user_error(self, error, *, at_runtime=False, code=None):
         error_repr = ak_runtime.LocalRuntime.error_repr(
             error=error,
-            at_parsing=at_parsing,
             at_runtime=at_runtime,
             code=code,
         )
         error_repr = self.USER_ERROR_SCHEMA.format(error=error_repr).strip()
 
+        # this is hacky
         if isinstance(error, ModuleNotFoundError):
             hint_repr = 'try to use python standard library and installed pip packages'
             hint_repr += '\napproach problem differently'
@@ -158,24 +158,16 @@ class Example:
 
     @staticmethod
     def add_code_markdown(code):
-        return f'```python\n{code}\n```'
+        # notice last is 4 backticks: this is for custom stop sequence for gpt
+        return f'```python\n{code}\n````'
 
     @staticmethod
     def strip_code_markdown(response):
-        # code = code.split('\n')
-        # if code[0] != '```python' or code[-1] != '```':
-        #     raise ValueError(
-        #         'assistance response code is of invalid format:'
-        #         ' double check that the code is wrapped in ```python ... ```'
-        #     )
-        # code = '\n'.join(code[1:-1]).strip()
-        # return code
-        pattern = r'```python\n((?:.*\n)*?)```'
+        pattern = r'```python\n((?:.*\n)*?)````'
         match = re.search(pattern, response, re.MULTILINE)
         if not match:
-            # raise ak_runtime.ResponseFormatError('assistant response code block is invalid')
             raise ak_runtime.ResponseFormatError(
-                'make sure to wrap code in markdown: ```python{code}```'
+                'wrap code in markdown code block: ```python{{code}}````'
             )
 
         return match.group(1).strip()
@@ -227,7 +219,11 @@ class Prompt:
             python_interpreter=ak_utils.python_intepreter_repr(),
         )
 
-        return Example(cls.SYSTEM_NAME, messages=[{'role': 'system', 'content': content}])
+        # https://www.promptingguide.ai/models/chatgpt#instructing-chat-models
+        system_role = 'system'
+        if config.model != 'gpt-4':
+            system_role = 'user'
+        return Example(cls.SYSTEM_NAME, messages=[{'role': system_role, 'content': content}])
 
     @property
     def messages(self):
@@ -315,7 +311,7 @@ class Prompt:
         for example in self.examples:
             examples_reprs.append(repr(example))
 
-        full_repr = '\n\n'.join(examples_reprs) + '\n' * int(post_nl)
+        full_repr = '\n'.join(examples_reprs) + '\n' * int(post_nl)
         if stdout:
             print(full_repr)
         else:

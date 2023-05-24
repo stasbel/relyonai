@@ -9,14 +9,16 @@ logger = logging.getLogger(__name__)
 
 PYTHON_VERSION = f'{sys.version_info.major}.{sys.version_info.minor}'
 
-AVAILABLE_MODELS = ('gpt-3.5-turbo', 'gpt-4')
+AVAILABLE_MODELS = ('gpt-3.5-turbo', 'gpt-3.5-turbo-0301', 'gpt-4')
 AVAILABLE_EMBEDDING_MODELS = 'text-embedding-ada-002'
 MODELS_PRICING_DOLLARS_PER_1K_PROMPT_TOKENS = {
     'gpt-3.5-turbo': 0.002,
+    'gpt-3.5-turbo-0301': 0.002,
     'gpt-4': 0.03,
 }
 MODELS_PRICING_DOLLARS_PER_1K_COMPLETITION_TOKENS = {
     'gpt-3.5-turbo': 0.002,
+    'gpt-3.5-turbo-0301': 0.002,
     'gpt-4': 0.06,
 }
 EMBEDDING_MODELS_PRICING_DOLLARS_PER_1K_TOKENS = {

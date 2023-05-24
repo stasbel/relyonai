@@ -218,11 +218,8 @@ class LocalRuntime:
             return None
 
     @staticmethod
-    def error_repr(error, *, at_parsing=False, at_runtime=False, code=None):
+    def error_repr(error, *, at_runtime=False, code=None):
         result = []
-
-        if at_parsing:
-            pass
 
         if at_runtime:
             last_tb = traceback.extract_tb(error.__traceback__)[-1]
