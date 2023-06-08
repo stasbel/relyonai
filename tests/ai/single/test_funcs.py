@@ -1,4 +1,4 @@
-from aiknows import ai
+from relyonai import ai
 
 
 def test_valid_phone_number():

@@ -4,6 +4,5 @@ dist
 *.egg-info
 __pycache__
 .pytest_cache
-.aiknows.cache
 .DS_Store
 .tox

@@ -5,7 +5,7 @@ import sys
 
 import numpy as np
 
-from aiknows import config
+from relyonai import config
 
 
 def package_exists(package_name):

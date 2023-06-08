@@ -6,11 +6,11 @@ import re
 
 import tiktoken
 
-from aiknows import config
-from aiknows import explain as ak_explain
-from aiknows import llm as ak_llm
-from aiknows import runtime as ak_runtime
-from aiknows import utils as ak_utils
+from relyonai import config
+from relyonai import explain as ak_explain
+from relyonai import llm as ak_llm
+from relyonai import runtime as ak_runtime
+from relyonai import utils as ak_utils
 
 logger = logging.getLogger(__name__)
 

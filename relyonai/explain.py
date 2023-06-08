@@ -1,6 +1,6 @@
 from typing import Any, Dict
 
-from aiknows import utils as ak_utils
+from relyonai import utils as ak_utils
 
 
 def type_repr(x):

@@ -1,6 +1,6 @@
 # schema
 
-* everything is truncated to `aiknows.config.n_truncate_repr` chars
+* everything is truncated to `relyonai.config.n_truncate_repr` chars
 
 ## system
 

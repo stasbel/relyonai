@@ -1,11 +1,11 @@
 import logging
 from typing import Any
 
-from aiknows import config
-from aiknows import llm as ak_llm
-from aiknows import prompt as ak_prompt
-from aiknows import runtime as ak_runtime
-from aiknows import utils as ak_utils
+from relyonai import config
+from relyonai import llm as ak_llm
+from relyonai import prompt as ak_prompt
+from relyonai import runtime as ak_runtime
+from relyonai import utils as ak_utils
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +20,7 @@ class Session:
         self.examples = []
 
     def ai(self, task: str, **kwargs) -> Any:
-        """refer to :func:`aiknows.ai`"""
+        """refer to :func:`relyonai.ai`"""
 
         task_example = ak_prompt.Example(task[:10] + '...')
         task_example.add_user_task(task, self.env, kwargs, add_cot=False)

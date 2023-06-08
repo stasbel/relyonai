@@ -5,7 +5,7 @@ requires = ["hatchling>=1.14.1"]
 build-backend = "hatchling.build"
 
 [project]
-name = "aiknows"
+name = "relyonai"
 version = "0.1.0"
 # version parser expected this to be of form ">={python_version}"
 requires-python = ">=3.8"
@@ -34,7 +34,7 @@ dev = [
     # external packages
     "pandas==2.0.1",
 ]
-all = ["aiknows[prompt]", "aiknows[dev]"]
+all = ["relyonai[prompt]", "relyonai[dev]"]
 
 [tool.black]
 line-length = 99

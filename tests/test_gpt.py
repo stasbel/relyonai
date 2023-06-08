@@ -1,4 +1,4 @@
-from aiknows import gpt
+from relyonai import gpt
 
 
 def test_progression():

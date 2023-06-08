@@ -1,9 +1,9 @@
-# aiknows
+# relyonai
 
 ## usage
 
 ```python
-from aiknows import ai
+from relyonai import ai
 ```
 
 ## `-> 0.2` future plans

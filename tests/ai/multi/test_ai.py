@@ -1,4 +1,4 @@
-from aiknows import ai
+from relyonai import ai
 
 # def test_follow_up():
 #     r, sess = ai('sum numbers in x', x=[1, 2, 3, 4, 5], save_session=True)

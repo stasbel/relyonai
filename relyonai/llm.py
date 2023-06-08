@@ -5,8 +5,8 @@ import joblib
 import openai
 import tenacity
 
-from aiknows import config
-from aiknows import runtime as ak_runtime
+from relyonai import config
+from relyonai import runtime as ak_runtime
 
 DEFAULT_TEMPERATURE = 1.0
 

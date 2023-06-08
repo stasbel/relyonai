@@ -3,8 +3,8 @@ import os
 
 import nbformat
 
-from aiknows import prompt as ak_prompt
-from aiknows import runtime as ak_runtime
+from relyonai import prompt as ak_prompt
+from relyonai import runtime as ak_runtime
 
 logger = logging.getLogger(__name__)
 

@@ -3,7 +3,7 @@ import os
 import pandas as pd
 import pytest
 
-from aiknows import config
+from relyonai import config
 
 DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data')
 

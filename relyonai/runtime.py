@@ -101,7 +101,7 @@ def setup_task(
     """
 
     # print assistant's prompt (user/task)
-    from aiknows import prompt as ak_prompt
+    from relyonai import prompt as ak_prompt
 
     example = ak_prompt.Example()
     args = args or {}
@@ -246,7 +246,7 @@ class LocalRuntime:
         self.globals.clear()
 
         # reserved globals
-        from aiknows import gpt
+        from relyonai import gpt
 
         self.globals.update(
             {

@@ -1,6 +1,6 @@
 # schema
 
-![schema](aiknows.excalidraw.png)
+![schema](relyonai.excalidraw.png)
 
 ## system
 ```
@@ -20,10 +20,10 @@ TASK: """
 """
 ARGS: {comma list of args}
 - {arg1}: """
-{arg1 explanation, up to aiknows.TRUNCATE_REPR chars}
+{arg1 explanation, up to relyonai.TRUNCATE_REPR chars}
 """
 - {arg2}: """
-{arg2 explanation, up to aiknows.TRUNCATE_REPR chars}
+{arg2 explanation, up to relyonai.TRUNCATE_REPR chars}
 """
 {etc.}
 ```
@@ -32,7 +32,7 @@ ARGS: {comma list of args}
 
 ```
 RESULT: """
-{repr(result), up to aiknows.TRUNCATE_REPR chars}
+{repr(result), up to relyonai.TRUNCATE_REPR chars}
 """
 ```
 
@@ -40,7 +40,7 @@ RESULT: """
 
 ```
 ERROR: """
-{print error (last message), up to aiknows.TRUNCATE_REPR chars}
+{print error (last message), up to relyonai.TRUNCATE_REPR chars}
 """
 ```
 
@@ -51,6 +51,6 @@ ERROR: """
 {code}
 [final_]result = {result expression}
 # or 
-raise AIKnowsError({error message})
+raise RelyOnAIError({error message})
 \```
 ```

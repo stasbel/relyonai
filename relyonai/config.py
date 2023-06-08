@@ -27,7 +27,7 @@ EMBEDDING_MODELS_PRICING_DOLLARS_PER_1K_TOKENS = {
     'text-embedding-ada-002': 0.0004,
 }
 
-CACHE_PATH = os.path.expanduser('~/.cache/aiknows')
+CACHE_PATH = os.path.expanduser('~/.cache/relyonai')
 
 
 @dataclass
@@ -62,7 +62,7 @@ class _Config:
                 )
 
         if key == 'cache_path':
-            from aiknows import llm as ak_llm
+            from relyonai import llm as ak_llm
 
             importlib.reload(ak_llm)
 
