@@ -27,8 +27,6 @@ EMBEDDING_MODELS_PRICING_DOLLARS_PER_1K_TOKENS = {
     'text-embedding-ada-002': 0.0004,
 }
 
-# cache is stored in ~~main package~~ home directory
-# CACHE_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), '.aiknows.cache'))
 CACHE_PATH = os.path.expanduser('~/.cache/aiknows')
 
 

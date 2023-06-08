@@ -17,4 +17,4 @@ def test_sets():
 
 def test_non_primes():
     list_x = [2, 3, 4, 5, 6, 7, 8, 9]
-    assert ai('a list of non primes in `list_x`', list_x=list_x) == [4, 6, 8, 9]
+    assert ai('a list of non-primes in `list_x`', list_x=list_x) == [4, 6, 8, 9]

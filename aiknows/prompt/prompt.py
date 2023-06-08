@@ -1,3 +1,4 @@
+import ast
 import json
 import logging
 import os
@@ -77,22 +78,14 @@ class Example:
     USER_TASK_SCHEMA = (
         'task description: """\n{task}\n"""\nenvironment: {env}\nglobal variables: {args}'
     )
+    COT_PROMPT = 'let’s work this out in a step by step way to be sure we have the right answer'
 
-    def add_user_task(self, task, env, args):
-        # env_repr = f'\'{env}\''
-        # env_repr = env
-        # args_repr = []
-        # for k, v in kwargs.items():
-        #     v_explanation = ak_explain.explain(v)
-        #     if len(v_explanation) > config.n_truncate_repr:
-        #         logger.warning('truncating explanation to %d chars', config.n_truncate_repr)
-        #         v_explanation = v_explanation[: config.n_truncate_repr] + '...[truncated]'
+    def add_user_task(self, task, env, args, *, add_cot=False):
+        task_repr = task
+        if add_cot:
+            # task_repr += f'\ndon\'t create an example code, return objective'
+            task_repr += f'\n{self.COT_PROMPT}'
 
-        #     args_repr.append(f'- {k}: """\n{v_explanation}\n"""')
-        # if len(args_repr) > 0:
-        #     args_repr = '\n' + '\n'.join(args_repr)
-        # else:
-        #     args_repr = '<empty>'
         if env == 'new':
             env_repr = 'new python interpreter'
         elif env == 'same':
@@ -114,8 +107,11 @@ class Example:
         else:
             args_repr = '<empty>'
 
-        # content = self.USER_TASK_SCHEMA.format(task=task, env=env_repr, args=args_repr).strip()
-        content = self.USER_TASK_SCHEMA.format(task=task, env=env_repr, args=args_repr).strip()
+        content = self.USER_TASK_SCHEMA.format(
+            task=task_repr,
+            env=env_repr,
+            args=args_repr,
+        ).strip()
         self.messages.append(self.construct_message('user', content))
         self.tasks.append(task)
 
@@ -158,19 +154,23 @@ class Example:
 
     @staticmethod
     def add_code_markdown(code):
-        # notice last is 4 backticks: this is for custom stop sequence for gpt
-        return f'```python\n{code}\n````'
+        return f'```python\n{code}\n```'
 
     @staticmethod
-    def strip_code_markdown(response):
-        pattern = r'```python\n((?:.*\n)*?)````'
+    def parse_code(response):
+        pattern = r'```python\n((?:.*\n)*?)```'
         match = re.search(pattern, response, re.MULTILINE)
         if not match:
             raise ak_runtime.ResponseFormatError(
-                'wrap code in markdown code block: ```python{{code}}````'
+                'wrap code in markdown code block: ```python{{code}}```'
             )
 
-        return match.group(1).strip()
+        code = match.group(1).strip()
+
+        # TODO: make this more robust
+        ast.parse(code)  # check
+
+        return code
 
     def add_assistant(self, code, add_markdown=False):
         if add_markdown:

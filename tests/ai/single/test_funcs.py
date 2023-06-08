@@ -24,7 +24,7 @@ def test_format_float():
 
 
 def test_extractor():
-    extractor = ai('extract all xxx-xxx-xxxx format phone numbers from text')
+    extractor = ai('extract all xxx-xxx-xxxx format phones from a given text')
     assert extractor('my phone number is 123-456-7890') == ['123-456-7890']
 
 

@@ -22,7 +22,7 @@ def test_imports_3():
 def test_imports_4():
     import numpy as np
 
-    assert np.allclose(ai('diagonal unit matrix constructor from numpy')(10), np.eye(10))
+    assert np.allclose(ai('return diagonal unit matrix constructor from numpy')(10), np.eye(10))
 
 
 def test_imports_5():

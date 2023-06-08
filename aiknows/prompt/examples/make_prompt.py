@@ -12,14 +12,14 @@ logger = logging.getLogger(__name__)
 NBS_ORDER = (
     # 'template',
     'imports',
-    'consts',
-    'files',
-    'funcs1',
-    'funcs2',
-    'funcs3',
-    'gpt',
-    'session',
-    'errors',
+    # 'consts',
+    # 'files',
+    # 'funcs1',
+    # 'funcs2',
+    # 'funcs3',
+    # 'gpt',
+    # 'session',
+    # 'errors',
     # 'sums',
     # 'plt',
     # 'error_fixing',
@@ -68,7 +68,7 @@ def make_format_example(runtime):
     dirty_code = '```python\n' + code
     example.add_assistant(dirty_code)
     try:
-        example.strip_code_markdown(dirty_code)
+        example.parse_code(dirty_code)
     except Exception as e:
         example.add_user_error(e)
 

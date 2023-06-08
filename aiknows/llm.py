@@ -31,14 +31,14 @@ def _cached_codegen_gpt(model, prompt_messages):
         model=model,
         messages=prompt_messages,
         temperature=0.0,  # it's code: maximum truth, minimum randomness
-        stop='\n````',  # ends markdown code block w/ 4 ticks, see `prompt.py`
+        stop=['```\n', '```<|endoftext|>'],
     )
 
     total_tokens = response['usage']['total_tokens']
     logger.info(f'codegen token usage: {total_tokens}')
     config.update_tokens(response)
 
-    result = response['choices'][0]['message']['content'].strip() + '\n````'
+    result = response['choices'][0]['message']['content'].strip() + '```'
 
     return result
 

@@ -23,7 +23,7 @@ class Session:
         """refer to :func:`aiknows.ai`"""
 
         task_example = ak_prompt.Example(task[:10] + '...')
-        task_example.add_user_task(task, self.env, kwargs)
+        task_example.add_user_task(task, self.env, kwargs, add_cot=False)
         task_example.log_last(logging.INFO)
 
         if self.env == 'new':
@@ -43,7 +43,7 @@ class Session:
             response = ak_llm.codegen_gpt(relevant_prompt.messages)
 
             try:
-                code = task_example.strip_code_markdown(response)
+                code = task_example.parse_code(response)
             except (SyntaxError, ak_runtime.ResponseFormatError) as e:
                 task_example.add_assistant(response)
                 task_example.log_last(logging.INFO)
