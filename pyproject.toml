@@ -6,11 +6,11 @@ build-backend = "hatchling.build"
 
 [project]
 name = "relyonai"
-version = "0.1.1"
+version = "0.1.2"
 authors = [
   { name="Stanislav Beliaev", email="its@stanb.me" },
 ]
-description = "Inline AI in your Python code"
+description = "Python Runtime Inline AI Calls"
 readme = "README.md"
 requires-python = ">=3.8"
 classifiers = [

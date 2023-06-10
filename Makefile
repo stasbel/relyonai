@@ -15,4 +15,4 @@ test:
 
 upload:
 	python -m build
-	twine upload dist/*
+	twine upload --skip-existing dist/*
