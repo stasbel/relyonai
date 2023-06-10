@@ -12,7 +12,7 @@ Python Runtime **Inline** AI Calls
 - ⭐️ Uses [Few-Shot](https://www.promptingguide.ai/techniques/fewshot) and [COT](https://www.promptingguide.ai/techniques/cot) under the hood.
 
 > **Warning**  
-> Halted till GPT-4 is publicly accessible (see [Reflections](#reflections)).
+> See [Reflections](#reflections).
 
 ## Usage
 
@@ -32,6 +32,8 @@ from relyonai import config
 config.model = 'gpt-4'
 config.clear_cache()
 ```
+
+See [tests](tests/ai/single) for more.
 
 ## Reflections
 
