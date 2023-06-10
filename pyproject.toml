@@ -6,7 +6,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "relyonai"
-version = "0.1.0"
+version = "0.1.1"
 authors = [
   { name="Stanislav Beliaev", email="its@stanb.me" },
 ]
