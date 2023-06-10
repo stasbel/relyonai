@@ -62,9 +62,9 @@ class _Config:
                 )
 
         if key == 'cache_path':
-            from relyonai import llm as ak_llm
+            from relyonai import llm as roi_llm
 
-            importlib.reload(ak_llm)
+            importlib.reload(roi_llm)
 
         return super().__setattr__(key, value)
 

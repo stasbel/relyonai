@@ -1,6 +1,6 @@
 from typing import Any, Dict
 
-from relyonai import utils as ak_utils
+from relyonai import utils as roi_utils
 
 
 def type_repr(x):
@@ -16,7 +16,7 @@ def explain(x: Any) -> Dict[str, str]:
     # result = [f'type: {type_repr(x)}']
     result = {'type': type_repr(x)}
 
-    if ak_utils.package_exists('numpy'):
+    if roi_utils.package_exists('numpy'):
         import numpy as np
 
         if isinstance(x, np.ndarray):
@@ -30,7 +30,7 @@ def explain(x: Any) -> Dict[str, str]:
             result['shape'] = str(x.shape)
             result['dtype'] = str(x.dtype)
 
-    if ak_utils.package_exists('pandas'):
+    if roi_utils.package_exists('pandas'):
         import pandas as pd  # # pyright: ignore
 
         if isinstance(x, (pd.DataFrame, pd.Series)):
@@ -47,8 +47,8 @@ def explain(x: Any) -> Dict[str, str]:
             #     f'dtypes: {[t.name for t in x.dtypes.to_list()]}'
             # )
             result['shape'] = str(x.shape)
-            result['columns'] = str(x.columns.to_list())
-            result['dtypes'] = str([t.name for t in x.dtypes.to_list()])
+            result['columns'] = str(x.columns.to_list())  # type: ignore
+            result['dtypes'] = str([t.name for t in x.dtypes.to_list()])  # type: ignore
 
     # merge lines
     # result = '\n'.join(result).strip()

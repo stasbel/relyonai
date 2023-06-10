@@ -1,7 +1,7 @@
 import ast
 import contextlib
 import traceback
-from typing import Any, Callable, Dict, Optional, Union
+from typing import Any, Callable, Dict, Iterator, Optional, Union
 
 
 class ControlFlowSignal(Exception):
@@ -11,23 +11,19 @@ class ControlFlowSignal(Exception):
 class SetupTaskSignal(ControlFlowSignal):
     """Exception raised by assistant when task is begining."""
 
-    def __init__(self, task: str, env: str, args: Dict[str, Any]) -> None:
+    def __init__(self, task: str, env: str, args_: Dict[str, Any]) -> None:
         super().__init__()
 
         self.task = task
         self.env = env
-        self._args = args
-
-    @property
-    def args(self) -> Dict[str, Any]:
-        return self._args
+        self.args_ = args_
 
     def __repr__(self) -> str:
         return '{class_name}(task={task}, env={env}, args={args})'.format(
             class_name=self.__class__.__name__,
             task=repr(self.task),
             env=repr(self.env),
-            args=repr(self.args),
+            args=repr(self.args_),
         )
 
 
@@ -71,7 +67,7 @@ _last_result = None
 
 
 @contextlib.contextmanager
-def enable_signals() -> None:
+def enable_signals() -> Iterator:
     global _can_throw_signals
     assert not _can_throw_signals
     _can_throw_signals = True
@@ -84,7 +80,7 @@ def enable_signals() -> None:
 def setup_task(
     *,
     task: str,
-    env: bool = 'new',
+    env: str = 'new',
     args: Optional[Dict[str, Any]] = None,
     globals: Dict[str, Any],
     validator: Optional[Callable[[Any], bool]] = None,
@@ -101,9 +97,9 @@ def setup_task(
     """
 
     # print assistant's prompt (user/task)
-    from relyonai import prompt as ak_prompt
+    from relyonai import prompt as roi_prompt
 
-    example = ak_prompt.Example()
+    example = roi_prompt.Example()
     args = args or {}
     example.add_user_task(task, env, args)
     example.log(stdout=True)
@@ -176,7 +172,7 @@ class LocalRuntime:
 
         self.source_file_path = source_file_path
 
-        self.globals = {}
+        self.globals: Dict[str, Any] = {}
         self.clear()
 
     def _execute_jupyter_style(self, code):

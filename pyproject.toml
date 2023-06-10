@@ -1,38 +1,48 @@
 # based on https://github.com/psf/black/blob/main/pyproject.toml
 
 [build-system]
-requires = ["hatchling>=1.14.1"]
+requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
 name = "relyonai"
 version = "0.1.0"
-# version parser expected this to be of form ">={python_version}"
+authors = [
+  { name="Stanislav Beliaev", email="its@stanb.me" },
+]
+description = "Inline AI in your Python code"
+readme = "README.md"
 requires-python = ">=3.8"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+keywords = ["openai", "gpt3", "ai"]
 dependencies = [
-    "openai[embeddings]==0.27.6",
-    "tiktoken==0.4.0",
-    "joblib==1.2.0",
+    "openai[embeddings]>=0.27.6",
+    "tiktoken>=0.4.0",
+    "joblib>=1.2.0",
 ]
 
 [project.optional-dependencies]
 prompt = [
-    "jupyter==1.0.0",
+    "jupyter>=1.0.0",
 ]
 dev = [
     # format
-    "black==23.3.0",
-    "isort==5.12.0",
+    "black>=23.3.0",
+    "isort>=5.12.0",
     # lint
-    "flake8==6.0.0",
-    "Flake8-pyproject==1.2.3",  # for [tool.flake8] section later
+    "flake8>=6.0.0",
+    "Flake8-pyproject>=1.2.3",  # for [tool.flake8] section later
+    "mypy>=1.3.0",
     # test
-    "pytest==7.3.1",
-    "pytest-sugar==0.9.7",
-    "pytest-xdist==3.2.1",
-    "tox==4.5.1",
+    "pytest>=7.3.1",
+    "pytest-sugar>=0.9.7",
+    "pytest-xdist>=3.2.1",
     # external packages
-    "pandas==2.0.1",
+    "pandas>=2.0.1",
 ]
 all = ["relyonai[prompt]", "relyonai[dev]"]
 
@@ -49,20 +59,8 @@ line_length = 99
 [tool.flake8]
 max-line-length = 99
 
+[tool.mypy]
+ignore_missing_imports = true
+
 [tool.pytest.ini_options]
-# with caching, single process is faster
-addopts="-n 8"
-
-[tool.tox]
-legacy_tox_ini = """
-[tox]
-# all envs:
-# env_list = python37, py3{8,9,10,11}
-# most likely envs:
-env_list = python37, py38
-
-[testenv]
-extras = dev
-commands = pytest
-pass_env = OPENAI_API_KEY
-"""
+addopts="-n 4"

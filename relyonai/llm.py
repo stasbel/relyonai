@@ -6,7 +6,7 @@ import openai
 import tenacity
 
 from relyonai import config
-from relyonai import runtime as ak_runtime
+from relyonai import runtime as roi_runtime
 
 DEFAULT_TEMPERATURE = 1.0
 
@@ -24,7 +24,7 @@ memory = joblib.Memory(config.cache_path, verbose=0)
 def _cached_codegen_gpt(model, prompt_messages):
     logger.info('cache miss on codegen gpt')
     if config.dollars_spent > config.dollars_limit:
-        raise ak_runtime.DollarsLimitError(f'{config.dollars_limit}$ limit met')
+        raise roi_runtime.DollarsLimitError(f'{config.dollars_limit}$ limit met')
 
     logger.info(f'len prompt messages: {len(prompt_messages)}')
     response = openai.ChatCompletion.create(
@@ -55,7 +55,7 @@ def codegen_gpt(prompt_messages: List[Dict[str, str]]) -> str:
 def _cached_gpt(model, prompt, temperature):
     logger.info('cache miss on gpt')
     if config.dollars_spent > config.dollars_limit:
-        raise ak_runtime.DollarsLimitError(f'{config.dollars_limit}$ limit met')
+        raise roi_runtime.DollarsLimitError(f'{config.dollars_limit}$ limit met')
 
     response = openai.ChatCompletion.create(
         model=model,
@@ -82,10 +82,10 @@ def gpt(prompt: str, *, t: float = DEFAULT_TEMPERATURE) -> str:
         t (float, optional): Temperature in range [0.0, 2.0]. Defaults to DEFAULT_TEMPERATURE.
 
     Raises:
-        ValueError: _description_
+        DollarsLimitError: if the package limit is met.
 
     Returns:
-        str: _description_
+        str: String completion for an input prompt.
     """
 
     return _cached_gpt(config.model, prompt, t)
@@ -99,7 +99,7 @@ def gpt(prompt: str, *, t: float = DEFAULT_TEMPERATURE) -> str:
 def _cahed_emb(model, text):
     logger.info('cache miss on emb')
     if config.dollars_spent > config.dollars_limit:
-        raise ak_runtime.DollarsLimitError(f'{config.dollars_limit}$ limit met')
+        raise roi_runtime.DollarsLimitError(f'{config.dollars_limit}$ limit met')
 
     # https://github.com/openai/openai-python/blob/da828789387755c964c8816d1198d9a61df85b2e/openai/embeddings_utils.py#L20
     text = text.replace('\n', ' ')

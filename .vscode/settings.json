@@ -1,17 +1,19 @@
 {
-  "python.analysis.typeCheckingMode": "off",
+  // format
   "python.formatting.provider": "black",
   "[python]": {
     "editor.rulers": [99],
     "editor.formatOnSave": true,
     "editor.codeActionsOnSave": {
-      "source.organizeImports": true
+      "source.organizeImports": true,
     },
   },
+  // lint
+  "python.analysis.typeCheckingMode": "off",
   "python.linting.flake8Enabled": true,
-  "python.testing.pytestArgs": [
-    "tests"
-  ],
+  "python.linting.mypyEnabled": true,
+  "python.linting.mypyArgs": [],
+  // test
   "python.testing.unittestEnabled": false,
   "python.testing.pytestEnabled": true,
 }

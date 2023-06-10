@@ -3,8 +3,8 @@ import os
 
 import nbformat
 
-from relyonai import prompt as ak_prompt
-from relyonai import runtime as ak_runtime
+from relyonai import prompt as roi_prompt
+from relyonai import runtime as roi_runtime
 
 logger = logging.getLogger(__name__)
 
@@ -52,13 +52,13 @@ class ExampleNotebookParser:
 
 def make_format_example(runtime):
     nb_parser = ExampleNotebookParser('format.ipynb')
-    example = ak_prompt.Example('format')
+    example = roi_prompt.Example('format')
 
     # setup
     code = nb_parser.next_cell_code()
     try:
         runtime.run(code, supress_stdout=True)
-    except ak_runtime.SetupTaskSignal as e:
+    except roi_runtime.SetupTaskSignal as e:
         example.add_user_task(e.task, e.env, e.args)
         runtime.clear()
         runtime.add_vars(e.args)
@@ -75,7 +75,7 @@ def make_format_example(runtime):
     # code correct
     try:
         runtime.run(code, supress_stdout=True)
-    except ak_runtime.FinishTaskOKSignal:
+    except roi_runtime.FinishTaskOKSignal:
         example.add_assistant(code, add_markdown=True)
 
     return example
@@ -84,7 +84,7 @@ def make_format_example(runtime):
 def make_example(runtime, nb_path):
     nb_parser = ExampleNotebookParser(nb_path)
     name = os.path.splitext(os.path.basename(nb_path))[0]
-    example = ak_prompt.Example(name)
+    example = roi_prompt.Example(name)
 
     active_task = False
     for _ in range(len(nb_parser)):
@@ -93,7 +93,7 @@ def make_example(runtime, nb_path):
         try:
             # don't care about stdout in examples
             result = runtime.run(code, supress_stdout=True)
-        except ak_runtime.SetupTaskSignal as e:
+        except roi_runtime.SetupTaskSignal as e:
             assert not active_task
             example.add_user_task(e.task, e.env, e.args)
             if e.env == 'new':
@@ -105,7 +105,7 @@ def make_example(runtime, nb_path):
             assert active_task
             example.add_assistant(code, add_markdown=True)
 
-            if isinstance(e, (ak_runtime.FinishTaskOKSignal, ak_runtime.FinishTaskErrorSignal)):
+            if isinstance(e, (roi_runtime.FinishTaskOKSignal, roi_runtime.FinishTaskErrorSignal)):
                 active_task = False
                 continue
 
@@ -127,8 +127,8 @@ if __name__ == '__main__':
     # minus template.ipynb
     # assert set(nbs_paths_order) == set(glob.glob('*.ipynb')) - {'template.ipynb'}
 
-    system = ak_prompt.Prompt.load_system('simpler2.md')
-    prompt, runtime = ak_prompt.Prompt(system), ak_runtime.LocalRuntime()
+    system = roi_prompt.Prompt.load_system('simpler2.md')
+    prompt, runtime = roi_prompt.Prompt(system), roi_runtime.LocalRuntime()
 
     # format_example = make_format_example(runtime)
     # prompt.add_example(format_example)
@@ -140,7 +140,7 @@ if __name__ == '__main__':
         logger.info('example %s added: %d tokens', example.name, example.n_tokens)
 
     # a little test
-    test_example = ak_prompt.Example()
+    test_example = roi_prompt.Example()
     test_example.add_user_task('import numpy', 'new', {})
     ordered_examples = prompt.fill_up_to_n_tokens(test_example, 2000)
     assert ordered_examples.examples[-1].name == 'imports'
@@ -148,4 +148,4 @@ if __name__ == '__main__':
     prompt.log(logging.INFO)
 
     prompt.save()
-    logger.info('prompt saved to file %s', ak_prompt.DEFAULT_PROMPT_FILE)
+    logger.info('prompt saved to file %s', roi_prompt.DEFAULT_PROMPT_FILE)

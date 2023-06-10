@@ -29,12 +29,21 @@ def test_extractor():
 
 
 def test_merge_lists():
-    assert ai('merge two lists into dict')([1, 2, 3], ['a', 'b', 'c']) == {1: 'a', 2: 'b', 3: 'c'}
+    assert ai('merge two lists into dict')([1, 2, 3], ['a', 'b', 'c']) == {
+        1: 'a',
+        2: 'b',
+        3: 'c',
+    }
 
 
 def test_filter_in():
     f = ai('filter palindromes away')
-    assert f(['hello', 'world', 'racecar', 'foo', 'bar']) == ['hello', 'world', 'foo', 'bar']
+    assert f(['hello', 'world', 'racecar', 'foo', 'bar']) == [
+        'hello',
+        'world',
+        'foo',
+        'bar',
+    ]
     assert f(['abc', 'ccc']) == ['abc']
 
 

@@ -12,7 +12,10 @@ def test_http():
 
 
 def test_sets():
-    assert ai('unique elements in a - b', a=set([1, 2, 3, 4, 5]), b=set([1, 2, 3])) == {4, 5}
+    assert ai('unique elements in a - b', a=set([1, 2, 3, 4, 5]), b=set([1, 2, 3])) == {
+        4,
+        5,
+    }
 
 
 def test_non_primes():

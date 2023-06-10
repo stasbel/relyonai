@@ -7,10 +7,10 @@ import re
 import tiktoken
 
 from relyonai import config
-from relyonai import explain as ak_explain
-from relyonai import llm as ak_llm
-from relyonai import runtime as ak_runtime
-from relyonai import utils as ak_utils
+from relyonai import explain as roi_explain
+from relyonai import llm as roi_llm
+from relyonai import runtime as roi_runtime
+from relyonai import utils as roi_utils
 
 logger = logging.getLogger(__name__)
 
@@ -39,10 +39,10 @@ class Example:
 
     @property
     def emb(self):
-        # return ak_llm.emb(repr(self))
+        # return roi_llm.emb(repr(self))
         # embedding model is confused by all this markdown
         tasks_repr = '\n'.join(self.tasks)
-        return ak_llm.emb(tasks_repr)
+        return roi_llm.emb(tasks_repr)
 
     MESSAGE_SCHEMA = '==={role}{name}===\n{content}'
 
@@ -95,7 +95,7 @@ class Example:
 
         args_repr = []
         for k, v in args.items():
-            v_explanation = ak_explain.explain(v)
+            v_explanation = roi_explain.explain(v)
             # args_repr.append(f'- {k} ({v_explanation["type"]})')
             # v_explanation.pop('type')
             args_repr.append(f'- {k}')
@@ -130,7 +130,7 @@ class Example:
     HINT_SCHEMA = 'hint: """\n{hint}\n"""'
 
     def add_user_error(self, error, *, at_runtime=False, code=None):
-        error_repr = ak_runtime.LocalRuntime.error_repr(
+        error_repr = roi_runtime.LocalRuntime.error_repr(
             error=error,
             at_runtime=at_runtime,
             code=code,
@@ -161,7 +161,7 @@ class Example:
         pattern = r'```python\n((?:.*\n)*?)```'
         match = re.search(pattern, response, re.MULTILINE)
         if not match:
-            raise ak_runtime.ResponseFormatError(
+            raise roi_runtime.ResponseFormatError(
                 'wrap code in markdown code block: ```python{{code}}```'
             )
 
@@ -216,7 +216,7 @@ class Prompt:
         # adding python version
         content = content.format(
             python_version=config.python_version,
-            python_interpreter=ak_utils.python_intepreter_repr(),
+            python_interpreter=roi_utils.python_intepreter_repr(),
         )
 
         # https://www.promptingguide.ai/models/chatgpt#instructing-chat-models
@@ -248,7 +248,7 @@ class Prompt:
 
         ordered_examples = sorted(
             self.examples,
-            key=lambda e: ak_utils.cosine_similarity(e.emb, example.emb),
+            key=lambda e: roi_utils.cosine_similarity(e.emb, example.emb),
             reverse=False,  # from least to most
         )
 

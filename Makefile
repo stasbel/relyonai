@@ -1,15 +1,18 @@
-.PHONY: format lint test
+CFLAGS := relyonai tests
+
+.PHONY: format lint test upload
 
 format:
-	# TODO: black isrot ...
-	false
+	python -m black $(CFLAGS)
+	python -m isort $(CFLAGS)
 
 lint:
-	# TODO: flake8 ...
-	false
+	python -m flake8 $(CFLAGS)
+	python -m mypy $(CFLAGS)
 
-# there is no parallel option for tox config
-# https://platform.openai.com/account/rate-limits 
-# processes are 1 now as openai rate limits are tough
 test:
-	tox -p 0
+	python -m pytest
+
+upload:
+	python -m build
+	twine upload dist/*
